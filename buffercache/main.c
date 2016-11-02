@@ -117,7 +117,7 @@ void hash_proc(int ac, char **av){
   return;
 }
 void free_proc(int ac, char **av){
-  printfree();
+   printfree();
   return;
 }
 void getblk_proc(int ac, char **av){
@@ -126,10 +126,65 @@ void getblk_proc(int ac, char **av){
     getblk(atoi(av[1]));
   return;
 }
-void brelse_proc(int ac, char **av){return;}
-void reset_proc(int ac, char **av){return;}
+void brelse_proc(int ac, char **av){
+  struct buf_header * p;
+   if (ac != 2) printf("Usage: brelse <block number>\n");
+  else{
+    if ((p = getblkpointer(atoi(av[1]))) == NULL) 
+      printf("This buffer is not cached\n");
+    else
+      brelse(p);
+  }
+  return;}
+void reset_proc(int ac, char **av){
+   int i;
+  if (ac < 3) {
+    printf ("Usage:set <block number> <state>");
+    return;
+  }
+  int blkno = atoi(av[1]);
+  if (search_hash(blkno) == NULL) {
+    printf("This block is not on buffer.\n");
+    return;
+  }
+  for (i = 2; i < ac; i++) {
+    if (strlen(av[i]) != 1) {
+      printf("This parameter is not valid.\n");
+      return;
+    }
+    if (av[i][0] != 'L'&&av[i][0]!='V'&&av[i][0]!='D'&&av[i][0]!='K'&&av[i][0]!='W'&&av[i][0]!='O'){
+      printf("This parameter is not valid.\n");
+      return;
+    }
+  }
+  bufresetstat(ac, av);
+  return;
+}
 void quit_proc(int ac, char **av) {exit(0);return;}
-void set_proc(int ac, char **av){return;}
+void set_proc(int ac, char **av) {
+  int i;
+  if (ac < 3) {
+    printf ("Usage:set <block number> <state>");
+    return;
+  }
+  int blkno = atoi(av[1]);
+  if (search_hash(blkno) == NULL) {
+    printf("This block is not on buffer.\n");
+    return;
+  }
+  for (i = 2; i < ac; i++) {
+    if (strlen(av[i]) != 1) {
+      printf("This parameter is not valid.\n");
+      return;
+    }
+    if (av[i][0] != 'L'&&av[i][0]!='V'&&av[i][0]!='D'&&av[i][0]!='K'&&av[i][0]!='W'&&av[i][0]!='O'){
+      printf("This parameter is not valid.\n");
+      return;
+    }
+  }
+  bufsetstat(ac, av);
+  return;
+}
 /*void numbers(int ac, char **av, int *res) {
   int i;
   int num;

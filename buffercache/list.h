@@ -24,10 +24,14 @@ void insert_head(struct buf_header *, struct buf_header *);
 void insert_free(struct buf_header *, struct buf_header *, int );
 void remove_from_hash(struct buf_header * );
 struct buf_header * getblk(int blkno);
-void brelse(struct buf_header *buffer);
+void brelse(struct buf_header *);
+struct buf_header * getblkpointer(int blkno);
 void printhash(int i);
 void printfree();
 void buf_state_print(struct buf_header*);
+void bufsetstat(int ac, char **av);
+void bufresetstat(int ac, char **av);
+
 struct buf_header * search_hash(int blkno);
 //global v
 extern struct buf_header hash_head[NHASH];
@@ -76,18 +80,18 @@ void insert_free(struct buf_header *h, struct buf_header *p, int i) {
 void remove_from_free(struct buf_header * p){
   p->free_bp->free_fp = p->free_fp;
   p->free_fp->free_bp = p->free_bp;
-  p->free_fp = p->free_bp = NULL;
+  p->free_fp = p->free_bp = p;
 }
 void remove_from_hash(struct buf_header * p){
   p->hash_bp->hash_fp = p->hash_fp;
   p->hash_fp->hash_bp = p->hash_bp;
-  p->hash_fp = p->hash_bp = NULL;
+  p->hash_fp = p->hash_bp = p;
 }
 struct buf_header * getblk(int blkno) {
   struct buf_header * p;
   struct buf_header * fp;
   fp = freehead.free_fp;
-  while(fp != &freehead){
+  while(1){
     if((p = search_hash(blkno)) != NULL){
       if(p->stat & STAT_LOCKED){
       	//senirio 5
@@ -104,38 +108,64 @@ struct buf_header * getblk(int blkno) {
     } else {
       if (freehead.free_fp == &freehead) {
         	//senario 4
-	printf("scenario4\n");
+          printf("Scenario4\n");
         	//sleep();
         	printf("Process goes to sleep\n");
         	return NULL;
       }
       if(fp->stat & STAT_DWR) {
       	//sinario3
-	printf("scenario3\n");
+	     printf("Scenario3\n");
       	//write asynchronous
+       fp->stat |= STAT_LOCKED;
+       fp->stat |= STAT_KRDWR;
         fp = fp->free_fp;
       	continue;
       }
       //sinario2
-      printf("scenario2\n");
+      printf("Scenario2\n");
       remove_from_free(fp);
       remove_from_hash(fp);
       insert_head(&hash_head[blkno % NHASH],fp);
       fp->blkno = blkno;
+      fp->stat |= STAT_LOCKED;
       return fp;
     }
   }
   return NULL;
 }
-void brelse(struct buf_header *buffer) {
+struct buf_header * getblkpointer(int blkno) {
+  struct buf_header * buffer;
+   for (buffer = hash_head[blkno%NHASH].hash_fp;buffer != &hash_head[blkno%NHASH];buffer = buffer->hash_fp) {
+    if (buffer->blkno == blkno) break;
+  }
+  if (buffer->blkno != blkno) {
+    printf("Error: This buffer is not cached.\n");
+    return NULL;
+  }
+  return buffer;
+}
+void brelse(struct buf_header * buffer) {
   //wakeup();
+  struct buf_header * p;
+  for (p = freehead.free_fp;p != &freehead;p = p->free_fp) {
+    if (p == buffer) {
+      printf("This buuffer is already on freelist.\n");
+      return;
+    }
+  
+  }
   printf("Wakeup processes waiting for any buffer\n");
   printf("Wakeup processes waiting for buffer of blkno $d\n", buffer->blkno);
   //raise_cpu_level();
-  if ((buffer->stat & STAT_VALID) & ~(buffer->stat & STAT_OLD))
+  if (((buffer->stat & STAT_VALID) != 0) & ((buffer->stat & STAT_OLD) == 0)) {
     insert_free(&freehead, buffer, 0);
-  else
+    printf("Insert buffer to tail of free list\n");
+  }
+  else{
     insert_free(&freehead, buffer, 1);
+    printf("Insert buffer to head of free list\n");
+  }
   //lower_cpu_level();
   buffer->stat &= ~STAT_LOCKED;
   return;
@@ -153,6 +183,10 @@ void buf_state_print(struct buf_header* s) {
   return;
 }
 void printhash(int i) {
+  if (i < 0 || NHASH-1 < i) {
+  printf("Error hash value should be 0~%d\n",NHASH-1);
+  return;
+  }
   struct buf_header * p;
   printf("%d: ",i);
   for (p = hash_head[i].hash_fp;p != &hash_head[i];p = p->hash_fp) {
@@ -168,4 +202,33 @@ void printfree() {
     printf(" ");
   }
   printf("\n");
+  return;
+}
+void bufsetstat(int ac, char **av) {
+  struct buf_header * p;
+  int i;
+  p = search_hash(atoi(av[1]));
+  for (i = 2; i < ac; i++) {
+    if (av[i][0] == 'L') p->stat |= STAT_LOCKED;
+    else if (av[i][0] == 'V') p->stat |= STAT_VALID;
+    else if (av[i][0] == 'D') p->stat |=STAT_DWR;
+    else if (av[i][0] == 'K') p->stat |=STAT_KRDWR;
+    else if (av[i][0] == 'W') p->stat |= STAT_WAITED;
+    else if (av[i][0] == 'O') p->stat |=STAT_OLD;
+  }
+  return;
+}
+void bufresetstat(int ac, char **av){
+  struct buf_header * p;
+  int i;
+  p = search_hash(atoi(av[1]));
+  for (i = 2; i < ac; i++) {
+    if (av[i][0] == 'L') p->stat &= ~STAT_LOCKED;
+    else if (av[i][0] == 'V') p->stat &=~STAT_VALID;
+    else if (av[i][0] == 'D') p->stat &=~STAT_DWR;
+    else if (av[i][0] == 'K') p->stat &=~STAT_KRDWR;
+    else if (av[i][0] == 'W') p->stat &=~STAT_WAITED;
+    else if (av[i][0] == 'O') p->stat &=~STAT_OLD;
+  }
+  return;
 }
