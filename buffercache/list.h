@@ -7,13 +7,8 @@
 #define STAT_WAITED 0x00000010
 #define STAT_OLD    0x00000020
 //functions
-struct buf_header * search_hash(int blkno);
 //struct buf_header * search_free(int blkno);
-void insert_head(struct buf_header *h, struct buf_header *p);
-void insert_free(struct buf_header *h, struct buf_header *p, int i);
-void remove_from_hash(struct buf_header * p);
-struct buf_header * getblk(int blkno);
-void brelse(struct buf_header *buffer);
+
 //struct
 struct buf_header {
     int blkno;
@@ -24,15 +19,22 @@ struct buf_header {
     struct buf_header *free_bp;
     char * cache_data;
   };
+void insert_head(struct buf_header *, struct buf_header *);
+void insert_free(struct buf_header *, struct buf_header *, int );
+void remove_from_hash(struct buf_header * );
+struct buf_header * getblk(int blkno);
+void brelse(struct buf_header *buffer);
+struct buf_header * search_hash(int blkno);
 //global v
-struct buf_header hash_head[NHASH];
-struct buf_header freehead;
-struct buf_header 
+extern struct buf_header hash_head[NHASH];
+extern struct buf_header freehead;
+extern struct buf_header buffers[12];
+//extern struct buf_header 
 
 struct buf_header * search_hash(int blkno){
   int h;
   struct buf_header *p;
-  h = hash(blkno);
+  h = blkno % NHASH;
   for (p = hash_head[h].hash_fp;p != &hash_head[h];p = p->hash_fp) if (p->blkno == blkno) return p;
   return NULL;
 }
@@ -69,7 +71,7 @@ void insert_free(struct buf_header *h, struct buf_header *p, int i) {
 }
 void remove_from_free(struct buf_header * p){
   p->free_bp->free_fp = p->free_fp;
-  p->freefp->free_bp = p->free_bp;
+  p->free_fp->free_bp = p->free_bp;
   p->free_fp = p->free_bp = NULL;
 }
 void remove_from_hash(struct buf_header * p){
@@ -111,7 +113,6 @@ struct buf_header * getblk(int blkno) {
       remove_from_hash(fp);
       insert_head(&hash_head[blkno % NHASH],fp);
       fp->blkno = blkno;
-      buffer->stat &= ~STAT_LOCKED;
       return fp;
     }
   }
