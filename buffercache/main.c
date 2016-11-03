@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
   struct command_table *p;
   init();
     while(1){
-      printf("$");
+      printf("$ ");
     myinput(&ac, av, input);
     for (p = cmd_tbl; p->cmd; p++)
       if (strcmp(av[0], p->cmd) == 0) {
@@ -58,7 +58,20 @@ int main(int argc, char *argv[])
   }
   return 0;
 }
-void help_proc(int ac, char **av) {printf("help\n");return;}
+void help_proc(int ac, char **av) {
+  printf("Buffercache 20161102\n\nUsage:<command> [<args>]\n");
+  printf("Buffercache command are:\n");
+  printf("help             Show help for this command\n");
+  printf("buf [n..]        Show the states of buffer you designate in buffer numbers. If no arguments, show all buffer states.\n");
+  printf("hash [n..]       Show hashlists you designate in hash numbers. If no arguments, show all buffer states\n");
+  printf("free             Show freelist\n");
+  printf("getblk n         Execute getblk(n), requiring buffernumber, n.\n");
+  printf("brelse n         Execute brelse(n), requiring buffernumber, n.\n");
+  printf("set n [stat..]   Set states to buffernumber n's buffer\n");
+  printf("reset n [stat..] Reset states to buffernumber n's buffer\n");
+  printf("quit             Quit this command.\n");
+  return;
+}
 void init(){
   //intialize ponters
   int i;
