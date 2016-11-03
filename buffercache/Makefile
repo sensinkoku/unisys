@@ -1,11 +1,10 @@
 CC = gcc
-CFLAGS = -Wall
 
 OUTPUT := bufcache
 
 $(OUTPUT): main.c
-	$(CC) $(CFLAGS) -o $(OUTPUT)
+	$(CC) -o $(OUTPUT) main.c
 
 clean:
-	rm *.o $(OUTPUT)
+	rm $(OUTPUT)
 

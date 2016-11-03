@@ -56,7 +56,6 @@ struct buf_header * search_hash(int blkno){
 }*/
 void insert_head(struct buf_header *h, struct buf_header *p) {
   //p is insert node, h is head node.
-  int ha;
   p->hash_bp = h;
   p->hash_fp = h->hash_fp;
   h->hash_fp->hash_bp = p;
@@ -156,7 +155,7 @@ void brelse(struct buf_header * buffer) {
   
   }
   printf("Wakeup processes waiting for any buffer\n");
-  printf("Wakeup processes waiting for buffer of blkno $d\n", buffer->blkno);
+  printf("Wakeup processes waiting for buffer of blkno %d\n", buffer->blkno);
   //raise_cpu_level();
   if (((buffer->stat & STAT_VALID) != 0) & ((buffer->stat & STAT_OLD) == 0)) {
     insert_free(&freehead, buffer, 0);
