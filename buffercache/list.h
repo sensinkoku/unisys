@@ -6,10 +6,6 @@
 #define STAT_KRDWR  0x00000008
 #define STAT_WAITED 0x00000010
 #define STAT_OLD    0x00000020
-//functions
-//struct buf_header * search_free(int blkno);
-
-//struct
 struct buf_header {
     int blkno;
     int bufnum;
@@ -33,11 +29,10 @@ void bufsetstat(int ac, char **av);
 void bufresetstat(int ac, char **av);
 
 struct buf_header * search_hash(int blkno);
-//global v
+//global variables
 extern struct buf_header hash_head[NHASH];
 extern struct buf_header freehead;
 extern struct buf_header buffers[12];
-//extern struct buf_header 
 
 struct buf_header * search_hash(int blkno){
   int h;
@@ -46,14 +41,7 @@ struct buf_header * search_hash(int blkno){
   for (p = hash_head[h].hash_fp;p != &hash_head[h];p = p->hash_fp) if (p->blkno == blkno) return p;
   return NULL;
 }
-/*struct buf_header * search_free(int blkno){
-  int h;
-  struct buf_header *p;
-  for (p = freehead.hash_fp;p != &freehead;p = p->hash_fp){
-    if(p->blkno == blkno) return p;
-  }
-  return NULL;
-}*/
+
 void insert_head(struct buf_header *h, struct buf_header *p) {
   //p is insert node, h is head node.
   p->hash_bp = h;
@@ -94,7 +82,7 @@ struct buf_header * getblk(int blkno) {
     if((p = search_hash(blkno)) != NULL){
       if(p->stat & STAT_LOCKED){
       	//senirio 5
-	printf("Scenario5\n");
+	       printf("Scenario5\n");
       	//sleep();
       	printf("Process goes to sleep\n");
       	return NULL;
@@ -116,9 +104,14 @@ struct buf_header * getblk(int blkno) {
       	//sinario3
 	     printf("Scenario3\n");
       	//write asynchronous
+       fp->stat &= ~STAT_DWR;
        fp->stat |= STAT_LOCKED;
        fp->stat |= STAT_KRDWR;
-        fp = fp->free_fp;
+       fp->stat |= STAT_OLD;
+       struct buf_header * p;
+       p = fp;
+       fp = fp->free_fp;
+       remove_from_free(p);
       	continue;
       }
       //sinario2
@@ -128,6 +121,7 @@ struct buf_header * getblk(int blkno) {
       insert_head(&hash_head[blkno % NHASH],fp);
       fp->blkno = blkno;
       fp->stat |= STAT_LOCKED;
+      fp->stat |= STAT_VALID;
       return fp;
     }
   }
@@ -139,7 +133,7 @@ struct buf_header * getblkpointer(int blkno) {
     if (buffer->blkno == blkno) break;
   }
   if (buffer->blkno != blkno) {
-    printf("Error: This buffer is not cached.\n");
+    fprintf(stderr,"Error: This buffer is not cached.\n");
     return NULL;
   }
   return buffer;
@@ -149,7 +143,7 @@ void brelse(struct buf_header * buffer) {
   struct buf_header * p;
   for (p = freehead.free_fp;p != &freehead;p = p->free_fp) {
     if (p == buffer) {
-      printf("This buuffer is already on freelist.\n");
+      fprintf(stderr,"This buuffer is already on freelist.\n");
       return;
     }
   
@@ -183,7 +177,7 @@ void buf_state_print(struct buf_header* s) {
 }
 void printhash(int i) {
   if (i < 0 || NHASH-1 < i) {
-  printf("Error hash value should be 0~%d\n",NHASH-1);
+    fprintf(stderr,"Error hash value should be 0~%d\n",NHASH-1);
   return;
   }
   struct buf_header * p;
