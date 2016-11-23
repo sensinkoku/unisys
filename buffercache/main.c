@@ -108,11 +108,23 @@ void init_proc(int ac, char **av) {
   return;
 }
 void buf_proc(int ac, char **av){
-  int i;
-  for (i = 0; i < 12; i++) {
-    buf_state_print(&buffers[i]);
-    printf("\n");
+int i;
+  if (ac == 1) {
+    for (i = 0; i < 12; i++) {
+      buf_state_print(&buffers[i]);
+      printf("\n");
+    }
+    return;
   }
+  for (i = 1; i < ac; i++) {
+    int a = atoi(av[i]);
+    if (a < 0 || 12 <= a) {
+      fprintf(stderr,"Illegal arguments\n");
+      return;
+      }
+      buf_state_print(&buffers[a]);
+      printf("\n");
+    }
   return;
 }
 void hash_proc(int ac, char **av){

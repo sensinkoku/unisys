@@ -84,6 +84,7 @@ struct buf_header * getblk(int blkno) {
       	//senirio 5
 	       printf("Scenario5\n");
       	//sleep();
+         fp->stat |= STAT_WAITED;
       	printf("Process goes to sleep\n");
       	return NULL;
       }
