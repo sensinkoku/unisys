@@ -20,6 +20,8 @@ int main(int argc, char *argv[])
         char *  home = getenv("HOME");
         if (ac == 1 || strcmp(av[1], "~") == 0) chdir(home);
         else chdir(av[1]);
+      } else if (strcmp(av[ac-1],"exit")) {
+	exit(0);
       } else {
         pid_t p = fork();
         if (p == 0) {
