@@ -30,11 +30,12 @@ int main(int argc, char *argv[])
       } else {
 	int i;
 	int pipeplace;
-	int *pipefile[pipenum];
+	int *pipefile[pipenum][2];
 	if (ispipe[0] != 0 || ispipe[ac] != 0) fprintf(stderr, "Input error\n");
 	for (i = 0; i < ac; i++) if (ispipe[i] == 1) pipenum++;
 	int j;
 	j = 0;
+	
 	for (i = 0; i < pipenum+1; i++) {
 	  int start, end;
 	  int inputflag, outputflag;
@@ -55,7 +56,7 @@ int main(int argc, char *argv[])
 	  }
 	  if (redirect_in_index != -1) inputflag = 2;
 	  if (redirect_out_index != -1) outputflag = 2;
-	  
+	  pipefdopen(int **pfd)
 	  
 	/*
 	if (ispipe[0] != 0 || ispipe[ac] != 0) fprintf(stderr, "Input error\n");
@@ -78,6 +79,18 @@ int main(int argc, char *argv[])
           }
         }
       }
+    }
+  }
+  return 0;
+}
+static int pipefdopen(int ** pfds, int pipenum) {
+  int i;
+  if (pipenum == 0) {
+    return 0;
+  }
+  for (i = 0; i < pipenum; i++) {
+    if(pipe(pfds[i]) == -1) {
+      return -1;
     }
   }
   return 0;
