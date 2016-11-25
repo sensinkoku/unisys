@@ -56,7 +56,11 @@ int main(int argc, char *argv[])
 	  }
 	  if (redirect_in_index != -1) inputflag = 2;
 	  if (redirect_out_index != -1) outputflag = 2;
-	  pipefdopen(int **pfd)
+	  if (pipefdopen(int **pfd, pipenum) == -1) {
+	    fprintf(stderr, "pipe fd miss\n");
+	  }
+
+
 	  
 	/*
 	if (ispipe[0] != 0 || ispipe[ac] != 0) fprintf(stderr, "Input error\n");
@@ -86,7 +90,7 @@ int main(int argc, char *argv[])
 static int pipefdopen(int ** pfds, int pipenum) {
   int i;
   if (pipenum == 0) {
-    return 0;
+    return 2;
   }
   for (i = 0; i < pipenum; i++) {
     if(pipe(pfds[i]) == -1) {
