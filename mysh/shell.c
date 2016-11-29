@@ -8,19 +8,18 @@
 #define LEN 100
 void myinput(int* ac, char ** av, char * input, int *ispipe, int *isredirect);
 static int redirect_check(char **av, int startindex, int endindex, int * inputplace, int * outputplace);
-static int pipefdopen(int x, int y, int array[x][y]);
+//static int pipefdopen(int x, int y, int array[x][y]);
 int main(int argc, char *argv[])
 {
-	printf("test");
   int ac;
   char *av[16];
   char input[256];
   int ispipe[ac];
   int isredirect[ac];
-  int status;
   int i;
   int pipenum = 0;
   while(1) {
+  	  int status[pipenum+1];
     printf("$ ");
     myinput(&ac, av, input, ispipe, isredirect);
     if (ac >=1){
@@ -34,13 +33,23 @@ int main(int argc, char *argv[])
 	int i;
 	int pipeplace;
 	int pipefile[pipenum][2];
-	printf("\n%d %d\n",ac, pipenum);
 	for (i = 0; i < ac; i++) printf("this%d this",ispipe[i]);
 	if (ispipe[0] != 0 || ispipe[ac-1] != 0) fprintf(stderr, "Input error\n");
+	pipenum = 0;
 	for (i = 0; i < ac; i++) if (ispipe[i] == 1) pipenum++;
+	printf("\n%d %d\n",ac, pipenum);
 	int j;
 	j = 0;
 	printf("pipenum %d\n",pipenum);
+	int k1;
+	/*for (k1 = 0; k1 < pipenum; k1++) {
+		int r;
+		r = pipe(pipefile[k1]);
+		printf("this is r %d\n", r);
+    	if(r == -1) {
+      	return -1;
+    	}
+  	}*/
 	for (i = 0; i < pipenum+1; i++) {
 	  int start, end;
 	  int comstart, comend;
@@ -49,28 +58,40 @@ int main(int argc, char *argv[])
 	  int fd1, fd2;
 	  //1 is pipe. 0 is stdin/out 2 is file.
 	  if (i == 0) start = 0;
-	  else start = j+1;
+	  else {
+	  	start = j+1;
+	  	j++;
+	  }
 	  while(ispipe[j] != 1 && j != ac-1) j++;
+	  printf("j is %d\n",j);
 	  if (ispipe[j] == 1) outputflag = 1;
 	  else outputflag = 0;
 	  if (i != 0) inputflag = 1;
 	  if (i == 0) inputflag = 0;
 	  else inputflag = 1;
+	  //pipeopen
+	  int r;
+	  if(ispipe[j] == 1) {
+	  	r = pipe(pipefile[i]);
+	  	if (r == -1) {fprintf(stderr,"pipe error\n"); return -1;}
+	  }
 	  // redirect check
+	  printf("opf = %d\n",outputflag);
 	  if (outputflag == 1) end = j-1;
-	  else end = j;
+	   else end = j;
 	  if (redirect_check(av, start,end,&redirect_in_index,&redirect_out_index) == -1) {
 	    fprintf(stderr,"Too many redirects\n");
 	    break;
 	  }
 	  if (redirect_in_index != -1) inputflag = 2;
 	  if (redirect_out_index != -1) outputflag = 2;
-	  if (pipefdopen(pipenum,2,pipefile) == -1) {
+	  /*if (pipefdopen(pipenum,2,pipefile) == -1) {
 	    fprintf(stderr, "pipe fd miss\n");
-	  }
+	  }*/
 	  comend = end;
 	  comstart = start;
 	  if (fork() == 0) {
+	  	int m;
 	    switch (inputflag) {
 	    case 0:{
 	    	fprintf(stderr,"input-0\n");
@@ -80,13 +101,18 @@ int main(int argc, char *argv[])
 	    fprintf(stderr,"input-1\n");
 	      close(0);
 	      dup(pipefile[i-1][0]);
+	    for (m = 0; m < pipenum;m++) {
+	  	close(pipefile[m][0]);
+	  	close(pipefile[m][1]);
+		}
 	      break;
 	    }
 	    case 2: {
 	    	fprintf(stderr,"input-2\n");
-	      comend = redirect_in_index + 1;
+	      comend = redirect_in_index - 1;
+	      fprintf(stderr,"red in index %d\n", redirect_in_index);
 	      fd1 = open(av[redirect_in_index+1],O_RDONLY, 0644);
-	      close(1);
+	      close(0);
 	      dup(fd1);
 	      close(fd1);
 	      break;
@@ -95,6 +121,7 @@ int main(int argc, char *argv[])
 	    fprintf(stderr,"input-def\n");
 	      break;
 	    }
+
 	    switch (outputflag) {
 	    case 0: {
 	    	fprintf(stderr,"output-0\n");
@@ -102,8 +129,12 @@ int main(int argc, char *argv[])
 	    }
 	    case 1: {
 	    		fprintf(stderr,"output-1\n");
-	      close(0);
+	      close(1);
 	      dup(pipefile[i][1]);
+	   for (m = 0; m < pipenum;m++) {
+	       close(pipefile[m][0]);
+	       close(pipefile[m][1]);
+		}
 	      break;
 	    }
 	    case 2: {
@@ -128,25 +159,45 @@ int main(int argc, char *argv[])
 	    }
 	    fprintf (stderr,"comlength is %d\n", comend-comstart+1);
 	    exein[comlength] = NULL;
+	    fprintf(stderr,"exe %s\n", exein[0]);
 	    execvp(exein[0],exein);
+	    //exit(0);
 	    //change fg group
 	    //signalcheck
 	    // 
+	  }//fork kakko
+	  if (i != 0) {
+	  	close(pipefile[i-1][0]);
+	  	close(pipefile[i-1][1]);
 	  }
-	  	    printf ("comlength is %d\n", comend-comstart+1);
-      if (strcmp(av[ac-1],"&") != 0)  wait(&status);
-	}//for kakko
-	int k;
+	  int k;
+	  /*int kj,kk;
+	  wait(&kk);
+	  wait(&kj);
+	  */
+	  	for (k = 0; k < pipenum + 1; k++) wait(&status[k]);
+	/*int k;
 	for (k = 0; k < pipenum;k++) {
 	  close(pipefile[k][0]);
 	  close(pipefile[k][1]);
-	}
+	}*/
+//if (strcmp(av[ac-1],"&") != 0)  wait(&status);
+	}//for kakko
+	int k;
+	printf("here\n");
+	/*for (k = 0; k < pipenum;k++) {
+	  close(pipefile[k][0]);
+	  close(pipefile[k][1]);
+	}*/
+	printf("here is ok\n");
+	//for (k = 0; k < pipenum + 1; k++) wait(&status[k]);
+	//if (strcmp(av[ac-1],"&") != 0)  wait(&status);
     }
     }
   }
   return 0;
 }
-static int pipefdopen(int x,int y, int array[x][y]) {
+/*static int pipefdopen(int x,int y, int array[x][y]) {
   int i;
   if (x == 0) {
     return 2;
@@ -157,7 +208,7 @@ static int pipefdopen(int x,int y, int array[x][y]) {
     }
   }
   return 0;
-}
+}*/
 static int redirect_check(char **av, int startindex, int endindex, int * inputplace, int * outputplace) {
   int i;
   int inp_num, oup_num;
