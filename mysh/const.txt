@@ -1,0 +1,47 @@
+ファイル構造
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
+必要なデータ
+入力トークン入力文
+トークンがパイプリダイレクトか
+パイプ数 pipenum
+
+パイプの場所
+ファイルディスクリプタ
+waitflag
+chpid
+chgid
+shellppid
+
+start end comstart comend inputflag outputflag 
+redirect_in_index redirect_out_index
+fd1, fd2
+
+comlength
+
+exein[]
+
+char **environ
+char *path
+____________________________
+大別して
+入力データ
+入力文としてのコマンドデータ(パイプ数)
+各コマンドとしてのデータ start end redirect_inなど
+chpid, chgidやfd1,fd2といった一行ごとに共通するプログラムデータ
+
+
+
+
+
+____________________________
+
+
+入力を受け付けるファイル(データ構造structにしてもいい)
+	入力パース
+	パースからパイプ数とかを取ってくる
+	入力でどこがパイプどこがリダイレクトかわかる
+プロセスを生成する
+
+
+
+
