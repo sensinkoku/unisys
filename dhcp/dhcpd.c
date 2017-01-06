@@ -95,8 +95,12 @@ static int recv_packet(struct dhcpd * dd) {
 		return 0;
 }
 static int client_check(struct dhcpd * dd, struct c_entry *client) {
-	if (search_client(ntohl(dd->bufskt.sin_addr.s_addr)) == NULL) {
-			client = make_new_client(dd->c_entry_head, dd->bufskt);
+  uint32_t ip;
+  uint16_t portnum;
+  ip = dd->bufskt.sin_addr.s_addr;
+  portnum = dd->bufskt.sin_port;
+  if (search_client(&(dd->c_entry_head),ip,port) == NULL) {
+    client = make_new_client(&(dd->c_entry_head), dd->bufskt, dd->);
 	} else {
 			
 	}
