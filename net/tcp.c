@@ -20,7 +20,7 @@ int main(int argc, char *argv[])
   inet_aton(ipad, &ipaddr);
   struct sockaddr_in skt, myskt;
   socklen_t addrlen;
-  if ((s = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+  if ((s = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
     perror("socket");
     exit(1);
   }
@@ -32,20 +32,20 @@ int main(int argc, char *argv[])
     perror("accept");
     exit(1);
   } */
-  if (connect(s, &skt, &addrlen) < 0) {
-    perror("listen");
-    exit(1);
-  }
   fgets(sbuf, 512, stdin);
   length = strlen(sbuf);
   //sock addr in is ip is struct in_addr
   //addr in is inaddr_t 32bit unsigned
   //portnum is in_port_t
   memset(&skt, 0, sizeof skt);
-  skt.sin_family = PF_INET;
+  skt.sin_family = AF_INET;
   skt.sin_port = htons(portnum);
   skt.sin_addr.s_addr = ipaddr.s_addr;
-  if ((count = send(s, sbuf, length, 0, (struct sockaddr * )&skt, sizeof skt)) < 0) {
+  if (count = (connect(s, (struct sockaddr *)&skt, sizeof skt)) < 0) {
+    perror("listen");
+    exit(1);
+  }
+  if ((count = send(s, sbuf, length, 0)) < 0) {
       perror("sendt");
       exit(1);
       }

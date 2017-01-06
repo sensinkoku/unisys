@@ -11,18 +11,19 @@ static int socket_and_bind(struct dhcpd * dd);
 static int work_dhcp_server(struct dhcpd * dd, struct c_entry *client);
 static int recv_packet(struct dhcpd * dd);
 static int client_check(struct dhcpd * dd, struct c_entry *client);
+static int mydhcpd_input_check(int argc, char * argv[]);
 // define extern functions
 void init_dhcpd(struct dhcpd * dd,int argc, char * argv[]) {
-	dd->ip_list_head.fp = NULL;
-	dd->ip_list_head.bp = NULL;
-	dd->c_entry_head.fp = NULL;
-	dd->c_entry_head.bp = NULL;
-
-	init_ip_list_from_arg(dd->ip_list_head, argc, argv); //errorcheck
-	//open socket and bind
-	socket_and_bind(dd);
-	//setting ip
-	//
+  init_ip_struct(dd->ip_list_head);
+  //  dd->ip_list_head.fp = dd->ip_list_head;
+  //dd->ip_list_head.bp = dd->ip_list_head;
+  dd->c_entry_head.fp = c_entry_head;
+  dd->c_entry_head.bp = c_entry_head;
+  mydhcpd_input_check(argc, argv);
+  init_ip_list_from_arg(dd->ip_list_head, argv[1]); //errorcheck
+  //open socket and bind
+  socket_and_bind(dd);
+  //setting ip
 }
 void loop_dhcpd(struct dhcpd * dd) {
 	for (;;) {
@@ -100,7 +101,13 @@ static int client_check(struct dhcpd * dd, struct c_entry *client) {
 	}
 	return 0;
 }
-
+static int mydhcpd_input_check(int argc, char * argv[]) {
+  if (argc != 2) {
+    fprintf(stderr, "Usage: ./dhcpd <fileneme>\n");
+    return -1;
+  }
+  return 0;
+}
 
 
 
