@@ -21,7 +21,7 @@ struct c_entry{
   short status;
 };
 //extern functions
-extern struct c_entry* make_new_client(struct c_entry * head, uint32_t ip, uint32_t portnum, short status, int lease);
+extern struct c_entry* make_new_client(struct c_entry * head, uint32_t ip, uint16_t portnum, short status, int lease);
 extern struct c_entry* search_client(struct c_entry * head, uint32_t ip, uint16_t portnum);
 extern int init_head_struct(struct c_entry*head,uint32_t ip, uint16_t portnum);
 extern int rm_client(struct c_entry * head, uint32_t ip, uint16_t portnum);

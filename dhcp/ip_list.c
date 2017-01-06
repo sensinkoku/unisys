@@ -36,7 +36,7 @@ int add_new_ip(struct ip_list * head, uint32_t ip, uint32_t mask) {
   while(p->fp != head) {
     p = p->fp;
   }
-  struct ip_list * newip = (struct ip_list *)malloc(sizeof(struct ip_list *));
+  struct ip_list * newip = (struct ip_list *)malloc(sizeof(struct ip_list));
   init_ip_struct(newip, ip, mask);
   insert_iplist(p, newip);
 }

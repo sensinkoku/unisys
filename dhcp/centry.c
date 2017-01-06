@@ -8,8 +8,8 @@
 static void insert_centry_list(struct c_entry * head, struct c_entry * insert);
 
 //define extern functions
-struct c_entry * make_new_client(struct c_entry * head, uint32_t ip, uint32_t portnum, short status, int lease) {
-  struct c_entry * newce = (struct c_entry *) malloc(sizeof(struct c_entry *));
+struct c_entry * make_new_client(struct c_entry * head, uint32_t ip, uint16_t portnum, short status, int lease) {
+  struct c_entry * newce = (struct c_entry *) malloc(sizeof(struct c_entry));
   newce->fp = newce;
   newce->bp = newce;
   newce->cli_addr.s_addr = ip;
@@ -55,9 +55,9 @@ int init_head_struct(struct c_entry* head,uint32_t ip, uint16_t portnum) {
 }
 int print_client_list(struct c_entry * head) {
   struct c_entry * p;
-  p = head;
+  p = head->fp;
   while (p != head) {
-    printf("ip:%d port:%d\n", p->cli_addr.s_addr, p->cli_port);
+    printf("ip:%u port:%u\n", p->cli_addr.s_addr, (unsigned int)p->cli_port);
     p = p->fp;
   }
   return 0;
