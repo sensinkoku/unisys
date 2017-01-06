@@ -14,11 +14,12 @@ static int client_check(struct dhcpd * dd, struct c_entry *client);
 static int mydhcpd_input_check(int argc, char * argv[]);
 // define extern functions
 void init_dhcpd(struct dhcpd * dd,int argc, char * argv[]) {
-  init_ip_struct(dd->ip_list_head);
+  init_ip_struct(dd->ip_list_head, 0, 0);
   //  dd->ip_list_head.fp = dd->ip_list_head;
   //dd->ip_list_head.bp = dd->ip_list_head;
-  dd->c_entry_head.fp = c_entry_head;
-  dd->c_entry_head.bp = c_entry_head;
+  init_centry_struct(0, 0);
+  //dd->c_entry_head.fp = c_entry_head;
+  //dd->c_entry_head.bp = c_entry_head;
   mydhcpd_input_check(argc, argv);
   init_ip_list_from_arg(dd->ip_list_head, argv[1]); //errorcheck
   //open socket and bind
