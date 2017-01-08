@@ -3,22 +3,20 @@
 #include <sys/type.h>
 #include <sys/socket.h>
 
+struct dhcp_packet;
+
 #define DHCPSERVERPORT 51230
+#define REQUEST_WAIT_TIME 10
 //Forward declaration
 struct in_addr;
 struct ip_list;
-// Data structure
 struct dhcpd {
-  //server socket data
-  int s;
-  struct sockaddr_in myskt;
-  // buffers
-  char buf[512];
-  struct sockaddr_in bufskt;  
-  //client struct list
-  struct c_entry c_entry_head;
-  //ip list
-  struct ip_list ip_list_head;
+  int s;  //server socket data
+  struct sockaddr_in myskt; //server ip
+  struct dhcp_packet *buf; // late received packet
+  struct sockaddr_in bufskt;  // late client socket
+  struct c_entry c_entry_head; //client list head
+  struct ip_list ip_list_head; //ip list head
 };
 //extern functions
 extern void init_dhcpd();

@@ -1,5 +1,6 @@
 #ifndef DHCP_PACKET_H_
 #define DHCP_PACKET_H_
+#include <stdint.h>
 // messages
 #define DHCPDISCOVER 1
 #define DHCPOFFER 2
@@ -8,10 +9,11 @@
 #define DHCPRELEASE 5
 
 struct dhcp_packet{
-  //ips
-  //ports
-  //messages type, code, tyme to live, ip, netmask
+	uint8_t type;
+	uint8_t code;
+	uint16_t time;
+	uint32_t address;
+	uint32_t netmask;
 };
-extern struct dhcp_packet* make_dhcp_packet();
-
+extern void init_dhcp_packet(struct dhcp_packet * p,uint8_t type, uint8_t code, uint16_t time, uint32_t ip, uint32_t mask);
 #endif //DHCP_PACKET_H_

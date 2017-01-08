@@ -18,16 +18,19 @@ int init_ip_list_from_arg(struct ip_list * head, char * filename) {
   if((fp = fopen(filename, "r")) == NULL) {
     fprintf (stderr, "IP list file not exist\n");
     exit(1);
+    return -1;
   }
   while (fgets(line, 100, fp) != NULL) {
     //end of line is \n \0
     if (parse_ip_fromline(line, &ip, &mask) < 0) {
       fprintf(stderr, "input file error\n");
       exit(1);
+      return -1;
     } else {
       add_new_ip(head, ip, mask);
     }
   }
+  return 0;
 }
 int add_new_ip(struct ip_list * head, uint32_t ip, uint32_t mask) {
   //malloc and make ip_struct and add to list
@@ -41,11 +44,21 @@ int add_new_ip(struct ip_list * head, uint32_t ip, uint32_t mask) {
   insert_iplist(p, newip);
 }
 
-extern struct ip_list* getrm_ip_from_list() {
-  
-
-  
+extern struct ip_list* getrm_ip_from_list(struct ip_list * head) {
+  struct ip_list * p;
+  p = head->fp;
+  if (p == head) {
+    fprintf (stderr, "No IP on list.\n");
+    return NULL;
+  } else {
+  head->fp = p->fp;
+  p->fp->bp = head;
+  p->fp = NULL;
+  p->bp = NULL;
+  return p;
+  }
 }
+
 extern void print_ip_list(struct ip_list * hi) {
   struct ip_list * p;
   p = hi;
