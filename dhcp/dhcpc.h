@@ -21,12 +21,15 @@ struct dhcpc{
 
   	int stat;
   	int ttlcounter; //left time
+  	int msgttlcounter;
   //below: network byte order
 //  struct in_addr id; //idenfier
   //  struct in_addr addr;
+  	int ipsetor; // 0 is not set, 1 is set already
   struct in_addr cli_addr;
   struct in_addr netmask;
   uint16_t ttl; // 10sec is tyme out for waiting message except DHCPDISCOVER
+  uint16_t msgttl;
 };
 //extern functions
 extern int init_dhcpc(struct dhcpc* dhc);

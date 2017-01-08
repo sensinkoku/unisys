@@ -23,7 +23,11 @@ static int init_dhcpc_struct(struct dhcpc * dhc, );
 static int dhcp_client_work(struct dhcpc * dhc);
 
 static int send_discover(dhcpc * dhc);
-static int status_change(struct dhcpc * dhc, int from, int to);
+
+static int wait_server_message(dhcpc * dhc);
+static int set_signal_and_timer ();
+
+static int status_change(struct dhcpc * dhc, int to);
 static int msg_offer(struct dhcpc * dhc);
 static int msg_ack(struct dhcpc * dhc);
 
@@ -35,6 +39,7 @@ static int msg_ack(struct dhcpc * dhc);
 //define extern functions
 int init_dhcpc(struct dhcp_client * dhc, int argc, char * argv[]) {
 	uint32_t ip// byte_order
+
 	ip = get_ip_from_arg(argc, argv);
 	init_dhcpc_struct(dhc, ip);
 	dhcp_client_work(dhc);
@@ -46,6 +51,7 @@ static dhcp_client_work(struct dhcpc * dhc) {
 	struct dhcp_packet t_packet;
 	send_discover (dhc);
 	for (;;) {
+
 		
 	
 	
@@ -59,7 +65,7 @@ static int send_discover(dhcpc * dhc) {
 		perror("sendto");
 		exit(1);
 	}
-	dhc->stat = STAT_WAIT_OFFER;
+	status_change(dhc, STAT_WAIT_OFFER);
 	return 0;
 }
 
@@ -89,3 +95,26 @@ static uint32_t get_ip_from_arg(int argc, char * argv[]) {
 		return ips.s_addr;
 	}
 }
+
+static int status_change(struct dhcpc * dhc, int from, int to) {
+	fprintf(stderr, "STATE CHANGED \n");
+	dhc->stat = to;
+	return 0;
+}
+static int set_signal_and_timer () {
+	struct itimerval timer;
+	timer.it_value.tv_sec = 0;
+    timer.it_value.tv_usec = 1000000;
+    timer.it_interval.tv_sec = 0;
+    timer.it_interval.tv_usec = 1000000;
+	sigaction(SIGALRM, search_ttl_and_decrease_time);
+ 	if (setitimer(ITIMER_REAL, &timer, NULL) < 0) {
+ 		perror("setitimer error");
+ 		exit(1);
+ 	}
+}
+
+
+
+
+
