@@ -10,6 +10,7 @@
 #include <time.h>
 #include <strings.h>
 #include <stdio.h>
+#include <arpa/inet.h>
 //#include <errono>
 #include <unistd.h>
 #include <signal.h>
@@ -66,6 +67,12 @@ static int socket_and_bind(struct dhcpd * dd) {
 	dd->myskt.sin_port = htons(portnum);
 	//Ip setting relys on OS
 	dd->myskt.sin_addr.s_addr = htonl(INADDR_ANY);
+	//test
+	struct in_addr test;
+	test.s_addr = ntohl(dd->myskt.sin_addr.s_addr);
+//	char * stringip = inet_ntoa(test);
+	fprintf (stderr, "this ip is %s", inet_ntoa(test));
+	//test
 	int count;
 	if ((count = bind(dd->s, (struct sockaddr *)&(dd->myskt), sizeof dd->myskt)) < 0) {
 		perror("server bind error");
