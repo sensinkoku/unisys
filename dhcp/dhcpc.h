@@ -19,7 +19,7 @@ struct dhcpc{
 	struct sockaddr_in skt;//server socket
 	struct dhcp_packet *buf;
 
-  	int stat;
+  	int stat; //status
   	int ttlcounter; //left time
   	int msgttlcounter;
   //below: network byte order
@@ -32,7 +32,7 @@ struct dhcpc{
   uint16_t msgttl;
 };
 //extern functions
-extern int init_dhcpc(struct dhcpc* dhc);
+extern int init_dhcpc(struct dhcpc* dhc, int argc, char * argv[]);
 extern int loop_dhcpc(struct dhcpc * dhc);
 
 extern struct c_entry* make_new_client(struct c_entry * head, uint32_t id, uint32_t ip, uint32_t mask, short stat, int ttl);
@@ -40,7 +40,7 @@ extern struct c_entry* search_client(struct c_entry * head, uint32_t id);
 extern int rm_client(struct c_entry * c);
 extern int extent_ttl(struct c_entry *c, uint16_t ttl);
 extern int print_client_list(struct c_entry * head);
-extern int client_status_change(struct c_entry *c, int from int to);
+extern int client_status_change(struct c_entry *c, int to);
 extern int search_ttl_and_decrease_time(struct c_entry *head);
 #endif // DHCPC_H_
 

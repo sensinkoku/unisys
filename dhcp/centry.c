@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdint.h>
+#include <string.h>
 #include "centry.h"
 //declare static functions
 static void insert_centry_list(struct c_entry * head, struct c_entry * insert);
@@ -16,7 +17,7 @@ struct c_entry* make_new_client(struct c_entry * head, uint32_t id, uint32_t ip,
   newce->id.s_addr = id;
   newce->cli_addr.s_addr = ip;
   newce->netmask.s_addr = mask;
-  newce->stat = stat;
+  newce->stat = status;
   newce->ttl = ttl;
   newce->ttlcounter = ttl;
   insert_centry_list(head, newce);
@@ -64,7 +65,7 @@ int init_head_struct(struct c_entry* head, uint32_t id) {
   head->bp = head;
   head->id.s_addr = 0;
   head->cli_addr.s_addr = 0;
-  head->mask.s_addr = 0;
+  head->netmask.s_addr = 0;
   return 0;
 }
 int extent_ttl (struct c_entry * c, uint16_t ttl)  {
@@ -75,28 +76,33 @@ int print_client_list(struct c_entry * head) {
   struct c_entry * p;
   p = head->fp;
   while (p != head) {
-    printf("ip:%d mask:%d\n", p->id.s_addr, p->mask.s_addr);
+    printf("ip:%d netmask:%d\n", p->id.s_addr, p->netmask.s_addr);
     p = p->fp;
   }
   return 0;
 }
-int client_status_change (struct c_entry *c, int from, int to) {
-  if (c->stat != from) {
-    fprintf(stderr, "stat transition miss\n");
-    return -1;
-  }
+int client_status_change (struct c_entry *c, int to) {
   char fromc[32];
+  char msgw[32] = "STAT_WAIT_ER\0";
+  char msgr[32] = "STAT_WAIT_REQUEST\0";
+  char msga[32] = "STAT_IP_ASSIGNED\0";
+  char msgr2[32] = "STAT_WAIT_REQUEST_2\0";
   char toc[32];
-  switch(from){
+  switch(to){
     case STAT_WAIT_DISCOVER:
-      fromc = "STAT_WAIT_DISCOVER\0";
+      strncpy(fromc,msgw,30);
+      break;
     case STAT_WAIT_REQUEST:
-      fromc = "STAT_WAIT_REQUEST\0";
-    case STAT_IP_ASSIGNED:
-      fromc = "STAT_IP_ASSIGNED\0";
+      strncpy(fromc, msgr, 30);
+      break;
+    case STAT_IP_ASSIGNMENT:
+      strncpy(fromc, msga, 30);
+      break;
     case STAT_WAIT_REQUEST_2:
-      fromc = "STAT_WAIT_REQUEST_2\0"
+      strncpy(fromc, msgr2, 30);
+      break;
     default:
+      break;
   }
   c->stat = to;
   return 0;

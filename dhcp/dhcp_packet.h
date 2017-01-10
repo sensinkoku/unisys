@@ -5,7 +5,7 @@
 #define DHCPDISCOVER 1
 #define DHCPOFFER 2
 #define DHCPREQUEST 3
-#define DHCPREPLY 4
+#define DHCPACK 4
 #define DHCPRELEASE 5
 
 struct dhcp_packet{

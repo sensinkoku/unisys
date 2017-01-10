@@ -1,7 +1,11 @@
 #ifndef DHCPD_H_
 #define DHCPD_H_
-#include <sys/type.h>
+#include <sys/types.h>
 #include <sys/socket.h>
+#include "dhcpd.h"
+#include "centry.h"
+#include "ip_list.h"
+#include "dhcp_packet.h"
 
 struct dhcp_packet;
 
@@ -10,6 +14,10 @@ struct dhcp_packet;
 //Forward declaration
 struct in_addr;
 struct ip_list;
+struct sockaddr_in;
+struct c_entry;
+struct ip_list;
+
 struct dhcpd {
   int s;  //server socket data
   struct sockaddr_in myskt; //server ip
