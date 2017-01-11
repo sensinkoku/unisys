@@ -4,19 +4,17 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdint.h>
-/*
-#define STAT_WAIT_DISCOVER 0
-#define STAT_WAIT_REQUEST 1
-#define STAT_IP_ASSIGNMENT 2
-#define STAT_WAIT_REQUEST_2 3
-#define NOT_IP_ASSIGNED 4
-*/
+
 #define DESTINATION_PORT 51230
 
 #define STAT_INITIAL 0
 #define STAT_WAIT_OFFER 1
-#define STAT_WAIT_ACK 2
-#define STAT_HAVE_IP 3
+#define STAT_WAIT_OFFER_2ND 2
+#define STAT_WAIT_ACK 3
+#define STAT_WAIT_ACK_2ND 4
+#define STAT_IN_USE 5
+#define STAT_WAIT_EXT_ACK 6
+
 
 #define CODE_IN_REQUEST_FIRST 2
 #define CODE_IN_REQUEST_EXTEND 3
@@ -40,7 +38,7 @@ struct dhcpc{
   struct in_addr cli_addr;
   struct in_addr netmask;
   uint16_t ttl; // 10sec is tyme out for waiting message except DHCPDISCOVER
-  uint16_t msgttl;
+  uint16_t ipttl; //ip ttl;
 };
 //extern functions
 extern int init_dhcpc(struct dhcpc* dhc, int argc, char * argv[]);

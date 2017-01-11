@@ -11,6 +11,7 @@
 #include <strings.h>
 #include <stdio.h>
 #include <arpa/inet.h>
+#include <errno.h>
 //#include <errono>
 #include <unistd.h>
 #include <signal.h>
@@ -26,7 +27,18 @@ static int set_signal_and_timer ();
 static int msg_discover (struct dhcpd * dd, struct c_entry *client);
 static int msg_request (struct dhcpd * dd, struct c_entry *client);
 static int msg_release (struct dhcpd * dd, struct c_entry *client);
+
+static void signal_alrm();
+static void signal_alrm_etc(struct dhcpd *dd);
+static int alarm_work_dhcpd(struct c_entry *c);
+
+static int getipttl_from_file(struct dhcpd *dhc, char *filename);
+///
+static flag_alrm;
+
+
 // define extern functions
+
 void init_dhcpd(struct dhcpd * dd,int argc, char * argv[]) {
   set_signal_and_timer();
   init_ip_struct(&(dd->ip_list_head), 0, 0);
@@ -35,6 +47,7 @@ void init_dhcpd(struct dhcpd * dd,int argc, char * argv[]) {
   if ((i = mydhcpd_input_check(argc, argv)) < 0) {
   	exit(1);
   }
+  getipttl_from_file(dd, argv[1]);
   if((i = init_ip_list_from_arg(&(dd->ip_list_head), argv[1])) < 0) {
   	exit(1);
   }
@@ -45,9 +58,10 @@ void init_dhcpd(struct dhcpd * dd,int argc, char * argv[]) {
 }
 void loop_dhcpd(struct dhcpd * dd) {
 	for (;;) {
+		int i;
 		struct c_entry *client = NULL;
 		// recv part
-		recv_packet(dd);
+		if ((i =recv_packet(dd)) < 0) continue;
 		//search client list by ip part
 		client_check(dd, &client); // not necessary remove
 		//work as dhcp
@@ -71,7 +85,7 @@ static int socket_and_bind(struct dhcpd * dd) {
 	//test
 	struct in_addr test;
 	test.s_addr = ntohl(dd->myskt.sin_addr.s_addr);
-//	char * stringip = inet_ntoa(test);
+ //	char * stringip = inet_ntoa(test);
 	fprintf (stderr, "DHCP server  ip is: %s\n", inet_ntoa(test));
 	//test
 	int count;
@@ -105,13 +119,13 @@ static int work_dhcp_server(struct dhcpd * dd, struct c_entry *client) {
 				return -1;
 			}
 			break;
-		case STAT_WAIT_REQUEST_2:
+		case STAT_WAIT_REQUEST2:
 			if (msg_request(dd, client) < 0) {
 				fprintf(stderr, "not proper message in stat WAIT_REQUEST_2\n");
 				return -1;
 			}
 			break;
-		case STAT_IP_ASSIGNMENT:
+		case STAT_IN_USE:
 			if (msg_release(dd, client) < 0) {
 				fprintf(stderr, "not proper message in stat STAT_IP_ASSIGNMENT\n");
 				return -1;
@@ -126,7 +140,26 @@ static int work_dhcp_server(struct dhcpd * dd, struct c_entry *client) {
 }
 
 static int recv_packet(struct dhcpd * dd) {
+		int fds;
 		int count;
+		fd_set rdfds;
+		FD_ZERO(&rdfds);
+		FD_SET(dd->s, &rdfds);
+		/*
+		if ((fds = select((dd->s)+1, &rdfds, NULL, NULL, NULL)) < 0) {
+			fprintf(stderr, "select miss\n");
+		} else if (rv == 0) {		// timeout
+			fprintf(stderr, "[NO PACKET] Waiting...\r", MSG_TIMEOUT);
+			return -1;
+		} else {	// data recieved
+		if (FD_ISSET(hpr->mysocd, &rdfds)) {*/
+		fds = select((dd->s)+1, &rdfds, NULL, NULL, NULL);
+		if (errno == 4) {
+			fprintf(stderr,"debug timeout\n");
+
+			errno = 0;
+			return -1;
+		} else {
 		socklen_t sktlen;
 		sktlen = sizeof dd->bufskt;
 		if ((count  = recvfrom (dd->s, dd->buf, sizeof (struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), &sktlen)) < 0) {
@@ -135,6 +168,7 @@ static int recv_packet(struct dhcpd * dd) {
 		}
 		print_dhcp_packet(dd->buf, 0);
 		return 0;
+	}
 }
 
 //return 1 if not exist, return 0 already exist, if case 1 client pointer is NULL
@@ -143,8 +177,8 @@ static int client_check(struct dhcpd * dd, struct c_entry **client) {
   id = ntohl(dd->bufskt.sin_addr.s_addr);
   search_client(&(dd->c_entry_head), client, id);
   if (*client == NULL) {
-//    client = make_new_client(&(dd->c_entry_head), dd->bufskt.sin_addr.s_addr, 0, 0, NOT_IP_ASSIGNED, PACKET_WAIT_TTL);
-    fprintf(stderr,"debug client is null\n");
+ //    client = make_new_client(&(dd->c_entry_head), dd->bufskt.sin_addr.s_addr, 0, 0, NOT_IP_ASSIGNED, PACKET_WAIT_TTL);
+    //fprintf(stderr,"debug client is null\n");
     	return 1;
 	} else {
 		return 0;
@@ -212,7 +246,7 @@ static int msg_request(struct dhcpd * dd, struct c_entry *client) {
 		sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
 		//fprintf(stderr, "SEND MESSAGE\n");
 		print_dhcp_packet(&packet, 1);
-		if (code == 0) client_status_change(client, STAT_IP_ASSIGNMENT);// can't use stat_wait_request_2
+		if (code == 0) client_status_change(client, STAT_IN_USE);// can't use stat_wait_request_2
 		else rm_client(client);// remove no siyou
 	} else {
 		fprintf(stderr, "Message error: state is not true, should be DHCPOFFER\n");
@@ -220,24 +254,81 @@ static int msg_request(struct dhcpd * dd, struct c_entry *client) {
 	}
 }
 static int msg_release(struct dhcpd * dd, struct c_entry *client) {
-	if (dd->buf->type == STAT_IP_ASSIGNMENT) {
+	if (dd->buf->type == DHCPRELEASE) {
 	  //	  	  fprintf(stderr, "RECEIVE MESSAGE :DHCPRELEASE\n");
 		rm_client(client);
-	} else {
+	} else if (dd->buf->type == DHCPREQUEST) {
+
+	}else{
 		fprintf(stderr, "Message error: state is not true, should be STAT_IP_ASSIGNMENT\n");
 		return -1;
 	}
 }
 static int set_signal_and_timer() {
-	struct itimerval timer;
-	timer.it_value.tv_sec = 0;
-    timer.it_value.tv_usec = 1000000;
-    timer.it_interval.tv_sec = 0;
-    timer.it_interval.tv_usec = 1000000;
-	//sigaction(SIGALRM, search_ttl_and_decrease_time);
- 	//if (setitimer(ITIMER_REAL, &timer, NULL) < 0) {
- 	//	perror("setitimer error");
- 	//	exit(1);
- 	//}
+	flag_alrm = 0;
+    signal(SIGALRM, signal_alrm);
+	struct timeval interval = { 1, 0 };
+    struct itimerval itimer = {interval, interval};
+    int ret = setitimer(ITIMER_REAL, &itimer, NULL);
+    return 0;
 }
-
+static void signal_alrm() {
+	flag_alrm++;
+	return ;
+}
+static void signal_alrm_etc(struct dhcpd *dd) {
+	if(flag_alrm != 0) {
+		struct c_entry * c;
+		c = dd->c_entry_head.fp;
+		while (c != &(dd->c_entry_head)) {
+			c->ttlcounter = c->ttlcounter - flag_alrm;
+			if (c->ttlcounter < 0) {
+				alarm_work_dhcpd(c);
+			}
+			c = c->fp;
+		}
+	}
+	flag_alrm = 0;
+	return;
+}
+static int alarm_work_dhcpd(struct c_entry *c) {
+	switch(c->stat) {
+		case STAT_WAIT_REQUEST:
+			client_status_change(c, STAT_WAIT_REQUEST2);
+			c->stat = STAT_WAIT_REQUEST2;
+			c->ttlcounter = PACKET_WAIT_TTL;
+			c->ttl = PACKET_WAIT_TTL;
+		break;
+		case STAT_WAIT_REQUEST2:
+			rm_client(c);
+		break;
+		case STAT_IN_USE:
+		fprintf(stderr, "Timeout \n");
+			rm_client(c);
+		break;
+		default:
+		fprintf(stderr, "debug: TTL < 0 but state is not \n");
+		break;
+	}
+	return 0;
+}
+static int getipttl_from_file(struct dhcpd *dd, char *filename) {
+  FILE * fp;
+  char line[100];
+  int i;
+  uint32_t ip;
+  uint32_t mask;
+  if((fp = fopen(filename, "r")) == NULL) {
+    fprintf (stderr, "IP list file not exist\n");
+    exit(1);
+    return -1;
+  }
+  if (fgets(line, 100, fp) == NULL) {
+	fprintf (stderr, "File is empty\n");
+    exit(1);
+    return -1;
+  }
+  sscanf(line, "%d", &(dd->ipttl));
+  fprintf(stderr, "ip ttl is %d\n", dd->ipttl);
+  return 0;
+}

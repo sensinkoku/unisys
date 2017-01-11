@@ -41,8 +41,8 @@ void print_dhcp_packet(struct dhcp_packet *p, int i) {
     break;
   }
   
-  if (i == 0) fprintf(stderr, "RECEIVED PACKET\n");
-  else if (i == 1) fprintf(stderr, "SEND PACKET\n");
+  if (i == 0) fprintf(stderr, "\nRECEIVED PACKET\n");
+  else if (i == 1) fprintf(stderr, "\nSEND PACKET\n");
   fprintf(stderr, "//////////////////////\n");
   fprintf(stderr, "packet detail\n");
   fprintf(stderr, "TYPE : %s\n", stat);

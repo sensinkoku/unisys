@@ -6,8 +6,8 @@
 #include <stdint.h>
 #define STAT_WAIT_DISCOVER 0
 #define STAT_WAIT_REQUEST 1
-#define STAT_IP_ASSIGNMENT 2
-#define STAT_WAIT_REQUEST_2 3
+#define STAT_IN_USE 2
+#define STAT_WAIT_REQUEST2 3
 #define NOT_IP_ASSIGNED 4
 
 #define PACKET_WAIT_TTL 10

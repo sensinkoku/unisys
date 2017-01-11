@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <time.h>
+#include <stdint.h>
 //#include <errno>
 #include <unistd.h>
 #include <signal.h>
@@ -29,8 +30,15 @@ static int msg_ack(struct dhcpc * dhc);
 static int msg_extend_ack(struct dhcpc * dhc);
 static int recv_packet(struct dhcpc * dhc);
 
-//debug, print, error
+static int set_signal_and_timer() ;
+static void signal_alrm();
+static void signal_hup();
+static void signal_alrm_etc(struct dhcpc *dhc);
+static void alarm_work_dhcpc(struct dhcpc * dhc);
 
+//debug, print, error
+static flag_alrm;
+static flag_hup;
 
 
 //define extern functions
@@ -62,12 +70,22 @@ static int dhcpc_loop(struct dhcpc * dhc) {
 			case STAT_WAIT_ACK:
 				msg_ack(dhc);
 				break;
-			case STAT_HAVE_IP:
+			case STAT_IN_USE:
 				msg_extend_ack(dhc);
+				break;
+			// not yet done change
+			case STAT_WAIT_OFFER_2ND:
+				msg_offer(dhc);
+				break;
+			case STAT_WAIT_ACK_2ND:
+				msg_ack(dhc);
+				break;
+			case STAT_WAIT_EXT_ACK:
+				msg_ack(dhc);
 				break;
 			default:
 				fprintf(stderr, "Type is not set\n");
-				exit;
+				exit(1);
 			break;
 		}
 
@@ -131,56 +149,64 @@ static int status_change(struct dhcpc * dhc, int to) {
     char fromc[32];
   char msgi[32] = "STAT_INITIAL\0";
   char msgo[32] = "STAT_WAIT_OFFER\0";
+  char msgo2[32] = "STAT_WAIT_OFFER_2ND\0";
   char msga[32] = "STAT_WAIT_ACK\0";
-  char msgh[32] = "STAT_HAVE_IP\0";
+  char msga2[32] = "STAT_WAIT_ACK_2ND\0";
+  char msgh[32] = "STAT_IN_USE\0";
+  char msgw[32] = "STAT_WAIT_EXT_ACK\0";
+
   char toc[32];
   switch(dhc->stat){
-  case STAT_INITIAL:
+ 	case STAT_INITIAL:
       strncpy(fromc,msgi,30);
       break;
-  case STAT_WAIT_OFFER:
+ 	case STAT_WAIT_OFFER:
       strncpy(fromc, msgo, 30);
+      break;
+    case STAT_WAIT_OFFER_2ND:
+      strncpy(fromc, msgo2, 30);
       break;
     case STAT_WAIT_ACK:
       strncpy(fromc, msga, 30);
       break;
-    case STAT_HAVE_IP:
+    case STAT_WAIT_ACK_2ND:
+      strncpy(fromc, msga2, 30);
+      break;
+    case STAT_IN_USE:
       strncpy(fromc, msgh, 30);
       break;
+     case STAT_WAIT_EXT_ACK:
+     	strncpy(fromc, msgw, 30);
     default:
       break;
   }
-    switch(to){
-  case STAT_INITIAL:
+  switch(to){
+ 	case STAT_INITIAL:
       strncpy(toc,msgi,30);
       break;
-  case STAT_WAIT_OFFER:
+ 	case STAT_WAIT_OFFER:
       strncpy(toc, msgo, 30);
+      break;
+    case STAT_WAIT_OFFER_2ND:
+      strncpy(toc, msgo2, 30);
       break;
     case STAT_WAIT_ACK:
       strncpy(toc, msga, 30);
       break;
-    case STAT_HAVE_IP:
+    case STAT_WAIT_ACK_2ND:
+      strncpy(toc, msga2, 30);
+      break;
+    case STAT_IN_USE:
       strncpy(toc, msgh, 30);
       break;
+     case STAT_WAIT_EXT_ACK:
+     	strncpy(toc, msgw, 30);
     default:
       break;
-  }  
+  }
     fprintf(stderr ,"STATUS CHANGE  FROM:%s  TO:%s\n", fromc , toc);
     dhc->stat = to;
 	return 0;
-}
-static int set_signal_and_timer () {
-	struct itimerval timer;
-	timer.it_value.tv_sec = 0;
-    timer.it_value.tv_usec = 1000000;
-    timer.it_interval.tv_sec = 0;
-    timer.it_interval.tv_usec = 1000000;
-	//sigaction(SIGALRM, search_ttl_and_decrease_time);
- 	/*if (setitimer(ITIMER_REAL, &timer, NULL) < 0) {
- 		perror("setitimer error");
- 		exit(1);
- 	}*/
 }
 static int msg_offer (struct dhcpc * dhc){
 	struct dhcp_packet packet;
@@ -190,7 +216,9 @@ static int msg_offer (struct dhcpc * dhc){
 			return -1;
 		} else {
 		  //			fprintf(stderr, "Received packet. message:DHCPOFFER\n");
-		  print_dhcp_packet(dhc->buf, 0);
+			dhc->cli_addr.s_addr = ntohl(dhc->buf->address);
+			dhc->netmask.s_addr = ntohl(dhc->buf->netmask);
+		    print_dhcp_packet(dhc->buf, 0);
 			uint16_t time = dhc->buf->time;
 			uint32_t ip = dhc->buf->address;
 			uint32_t mask = dhc->buf->netmask; 
@@ -219,26 +247,28 @@ static int msg_ack (struct dhcpc * dhc){
 			return -1;
 		} else {
 		  //fprintf(stderr, "Received packet. message:DHCPACK\n");
+			print_dhcp_packet(dhc->buf, 0);
 			uint16_t time = dhc->buf->time;
 			uint32_t ip = dhc->buf->address;
 			uint32_t mask = dhc->buf->netmask; 
 			dhc->cli_addr.s_addr = ip;//network order
 			dhc->netmask.s_addr = mask; //network order
 			dhc->ttl = dhc->buf->time;
-			dhc->ttlcounter = dhc->ttl;
-			dhc->ipsetor = 1;
+			dhc->ipttl = dhc->buf->time;
+			dhc->ttlcounter = (dhc->ttl)/2;
+			//dhc->ipsetor = 1;
 			ip = ntohl(ip);
 			mask = ntohl(mask);
 			struct in_addr ipin;
 			ipin.s_addr = ip;
 			char * ipstring = inet_ntoa(ipin);
-			fprintf(stderr, "IP set. IP:%s  ", ipstring);
+			fprintf(stderr, "\nIP set. IP:%s  ", ipstring);
 			struct in_addr maskin;
 			maskin.s_addr = mask;
 			char * maskstring = inet_ntoa(maskin);
 			fprintf(stderr, "Mask:%s\n", maskstring);
-			print_dhcp_packet(&packet, 1);
-			status_change(dhc, STAT_HAVE_IP);
+			//print_dhcp_packet(&packet, 1);
+			status_change(dhc, STAT_IN_USE);
 			return 0;
 		}
 		
@@ -283,5 +313,110 @@ static int msg_extend_ack (struct dhcpc * dhc){
 		return -1;
 	}
 }
-
-
+static int set_signal_and_timer() {
+	flag_alrm = 0;
+	flag_hup = 0;
+    signal(SIGALRM, signal_alrm);
+    signal(SIGHUP, signal_hup);
+	struct timeval interval = { 1, 0 };
+    struct itimerval itimer = {interval, interval};
+    int ret = setitimer(ITIMER_REAL, &itimer, NULL);
+    return 0;
+}
+static void signal_alrm() {
+	flag_alrm++;
+	return ;
+}
+static void signal_hup() {
+	flag_hup++;
+	return;
+}
+static void signal_alrm_etc(struct dhcpc *dhc) {
+	if(flag_hup != 0) {
+		if (dhc->stat != STAT_IN_USE && dhc->stat != STAT_WAIT_EXT_ACK) {
+			fprintf(stderr, "SIGHUP: IP is not in use.\n");
+			close(dhc->s);
+			exit(1);
+		} else {
+				
+		}
+		return;
+	}
+	if(flag_alrm != 0) {
+		(dhc->ttlcounter)--;
+		if (dhc->ttlcounter <= 0) alarm_work_dhcpc(dhc);
+	}
+	flag_alrm = 0;
+	return;
+}
+static void alarm_work_dhcpc(struct dhcpc * dhc) {
+	struct dhcp_packet packet;
+	switch (dhc->stat) {
+		case STAT_WAIT_OFFER:
+			{
+			uint16_t time = dhc->buf->time;
+			uint32_t ip = htonl(dhc->cli_addr.s_addr);
+			uint32_t mask = htonl(dhc->netmask.s_addr); 
+			init_dhcp_packet(&packet, DHCPDISCOVER, CODE_IN_REQUEST_EXTEND, 0,0,0);
+			int count;
+			if ((count = sendto(dhc->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dhc->skt), sizeof dhc->skt)) < 0) {
+					perror("sendto");
+					exit(1);
+			}
+			//			fprintf(stderr, "send REQUEST\n");
+			dhc->ttlcounter = PACKET_WAIT_TTL;
+			print_dhcp_packet(&packet, 1);
+			status_change(dhc, STAT_WAIT_OFFER_2ND);
+			}
+		break;
+		case STAT_WAIT_OFFER_2ND:
+			fprintf(stderr, "TIMEOUT EXIT: STAT_WAIT_OFFER_2ND\n");
+			exit(1);
+		break;
+		case STAT_WAIT_ACK:
+			{
+			uint16_t time = dhc->buf->time;
+			uint32_t ip = htonl(dhc->cli_addr.s_addr);
+			uint32_t mask = htonl(dhc->netmask.s_addr); 
+			init_dhcp_packet(&packet, DHCPREQUEST, CODE_IN_REQUEST_FIRST, time, ip, mask);
+			int count;
+			if ((count = sendto(dhc->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dhc->skt), sizeof dhc->skt)) < 0) {
+					perror("sendto");
+					exit(1);
+			}
+			dhc->ttlcounter = PACKET_WAIT_TTL;
+			//			fprintf(stderr, "send REQUEST\n");
+			print_dhcp_packet(&packet, 1);
+			status_change(dhc, STAT_WAIT_ACK_2ND);
+			}
+		break;
+		case STAT_WAIT_ACK_2ND:
+			fprintf(stderr, "TIMEOUT EXIT: STAT_WAIT_ACK_2ND\n");
+			exit(1);
+		break;
+		case STAT_IN_USE:
+			{
+			uint16_t time = dhc->ipttl;
+			uint32_t ip = htonl(dhc->cli_addr.s_addr);
+			uint32_t mask = htonl(dhc->netmask.s_addr);
+			init_dhcp_packet(&packet, DHCPREQUEST, CODE_IN_REQUEST_EXTEND, time, ip, mask);
+			int count;
+			if ((count = sendto(dhc->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dhc->skt), sizeof dhc->skt)) < 0) {
+					perror("sendto");
+					exit(1);
+			}
+			dhc->ttlcounter = dhc->ipttl/2;
+			//			fprintf(stderr, "send REQUEST\n");
+			print_dhcp_packet(&packet, 1);
+			status_change(dhc, STAT_WAIT_ACK_2ND);
+			}
+		break;
+		case STAT_WAIT_EXT_ACK:
+			fprintf(stderr, "TIMEOUT EXIT: STAT_WAIT_EXT_ACK\n");
+			exit(1);
+		break;
+		default:
+			fprintf(stderr, "TIMEOUT but no stat\n");
+		break;
+	}
+}

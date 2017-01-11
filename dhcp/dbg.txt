@@ -59,3 +59,113 @@ errnoに4番が入れられるのでそれのちぇっく
 入ってたら
 フラグを見て全部を0下げる
 そこからイベント
+
+
+残りやること
+状態遷移図pdf
+サーバ側ではクライアント番号表示
+settimer使って時間ごとにSIGARLMを送る
+そのたびにフラグを立てて、その際にselectがerrnoを返すので
+そのなかでフラグを選択し、何が起きたかによって状態遷移
+
+様々なもの表示
+
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
+残りの処理
+static flag_alrm;
+static flag_sighup;(クライアント側で)
+状態をdefineで定義、追随するパケット表示とかのコメントを全部変更
+void signal_alrm_etc();とかで処理を行う
+この中でflag_alrmとflag_sighupをチェック
+sighupならreleaseして終わり
+alarmなら、全てのクライアントttlを1下げる
+そしてその中で0となったものがあるなら
+それぞれSTATに応じてふさわしい処理を行う
+	再送とstat変更　や　ステータスチェンジ
+
+
+
+
+//以下いらない
+loop_dhcpdでは
+continue;はclient_checkも行ってからにする。
+もしくは飛び先でクライアントチェック
+//
+
+＿＿＿＿＿＿＿＿＿＿＿＿＿
+プリントをもっとちゃんと
+configをちゃんと書く
+
+＿＿＿＿＿＿＿＿＿＿＿＿＿
+クライアント側
+static flag_alrm;
+static flag_sighup;(クライアント側で)
+状態をdefineで定義、追随するパケット表示とかのコメントを全部変更
+void signal_alrm_etc();とかで処理を行う
+この中でflag_alrmとflag_sighupをチェック
+sighupならreleaseして終わり
+alarmなら、ttlを1下げる
+そしてその中で0となったものがあるなら
+それぞれSTATに応じてふさわしい処理を行う
+	再送とstat変更
+
+
+msg_ackとmsgack2()つくっておく
+そうしないと状態変更メッセージがおかしくなる
+そんなことはない
+
+void signal_alrm_etc(struct dhcpd*dd) {
+if (flag_sighup) {
+	//sendrelease;
+	exit();
+	return;
+}
+if(flag_alrm != 0) {
+	decrease_all_ttl_and_work(dd);
+]
+}
+flag_alrm = 0;
+return;
+}
+decrease_all_ttl_and_work(struct dhcpd*dd) {
+	search_client_by_ttl();
+
+	クライアント操作　全部1引く
+	if(ttl < 0) {
+		alarm_work(struct centry *client);
+	}
+}
+alarm_work(struct centry *c){
+statで場合分け　再送一つと状態遷移(クライアント破棄)2つのみ
+	switch{
+
+}
+
+}
+＿＿＿＿＿＿＿＿＿＿＿＿＿＿＿
+クライアント側の処理
+void signal_alrm_etc(struct dhcpc*dhc) {
+if (flag_sighup) {
+	//sendrelease;
+	exit();
+	return;
+}
+if(flag_alrm != 0) {
+	(dhc->ttl)—;
+	if (dhc->ttl <= 0) alarm_work(dhc);
+]
+}
+flag_alrm = 0;
+return;
+}
+void alarm_work(struct dhcpc * dhc) {
+switch(dhc->stat){
+	6個全てある。
+	終了 exit;(リリースしない) 3つ
+	メッセージ送って状態遷移３つ
+}
+return;
+}
+
+あとは各パケットにおいてcodeとかをチェック
+

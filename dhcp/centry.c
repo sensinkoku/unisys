@@ -85,8 +85,8 @@ int client_status_change (struct c_entry *c, int to) {
   char fromc[32];
   char msgw[32] = "STAT_WAIT_DISCOVER\0";
   char msgr[32] = "STAT_WAIT_REQUEST\0";
-  char msga[32] = "STAT_IP_ASSIGNED\0";
-  char msgr2[32] = "STAT_WAIT_REQUEST_2\0";
+  char msga[32] = "STAT_IN_USE\0";
+  char msgr2[32] = "STAT_WAIT_REQUEST_2ND\0";
   char toc[32];
   switch(c->stat){
     case STAT_WAIT_DISCOVER:
@@ -95,10 +95,10 @@ int client_status_change (struct c_entry *c, int to) {
     case STAT_WAIT_REQUEST:
       strncpy(fromc, msgr, 30);
       break;
-    case STAT_IP_ASSIGNMENT:
+    case STAT_IN_USE:
       strncpy(fromc, msga, 30);
       break;
-    case STAT_WAIT_REQUEST_2:
+    case STAT_WAIT_REQUEST2:
       strncpy(fromc, msgr2, 30);
       break;
     default:
@@ -111,10 +111,10 @@ switch(to){
     case STAT_WAIT_REQUEST:
       strncpy(toc, msgr, 30);
       break;
-    case STAT_IP_ASSIGNMENT:
+    case STAT_IN_USE:
       strncpy(toc, msga, 30);
       break;
-    case STAT_WAIT_REQUEST_2:
+    case STAT_WAIT_REQUEST2:
       strncpy(toc, msgr2, 30);
       break;
     default:

@@ -20,6 +20,11 @@ int init_ip_list_from_arg(struct ip_list * head, char * filename) {
     exit(1);
     return -1;
   }
+  if (fgets(line, 100, fp) == NULL) {
+  fprintf (stderr, "File is empty\n");
+    exit(1);
+    return -1;
+  }
   while (fgets(line, 100, fp) != NULL) {
     //end of line is \n \0
     if (parse_ip_fromline(line, &ip, &mask) < 0) {
