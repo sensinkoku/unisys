@@ -51,6 +51,7 @@ void print_dhcp_packet(struct dhcp_packet *p) {
   char * ipstring = inet_ntoa(in);
   in.s_addr = ntohl(p->netmask);
   char * maskstring = inet_ntoa(in);
+  fprintf(stderr, "test for debug in netorder ip:%d mask:%d", p->address, p->netmask);
   fprintf(stderr, "IP ADDRESS : %s\n",ipstring);
   fprintf(stderr, "MASK : %s\n",maskstring);
   fprintf(stderr, "//////////////////////\n");

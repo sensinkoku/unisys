@@ -36,4 +36,11 @@ $5 = {fp = 0x7fffffffe048, bp = 0x7fffffffe048, ip = 117483712,
   mask = 16777215}
 (gdb) 
 
+残りやること
+IPのリスト受け取り正しく
+ip, mask値の調整
+
+状態遷移を正しく
+ポートを追加（additional）
+
 

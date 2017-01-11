@@ -164,7 +164,8 @@ static int msg_discover(struct dhcpd * dd, struct c_entry *client) {
 	  fprintf(stderr, "RECEIVE MESSAGE :DHCPDISCOVER\n");
 				uint8_t code;
 				struct ip_list * ip;
-				if((ip = getrm_ip_from_list(&(dd->ip_list_head))) == NULL) {
+				int count;
+				if((count = getrm_ip_from_list(&(dd->ip_list_head), &ip)) < 0) {
 					fprintf(stderr, "msg_discover: can't assign because no ip\n");
 					code = 129;
 				} else{

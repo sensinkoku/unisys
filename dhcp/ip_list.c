@@ -44,18 +44,17 @@ int add_new_ip(struct ip_list * head, uint32_t ip, uint32_t mask) {
   insert_iplist(p, newip);
 }
 
-extern struct ip_list* getrm_ip_from_list(struct ip_list * head) {
-  struct ip_list * p;
-  p = head->fp;
-  if (p == head) {
+extern int  getrm_ip_from_list(struct ip_list * head, struct ip_list ** p) {
+  *p = head->fp;
+  if (*p == head) {
     fprintf (stderr, "No IP on list.\n");
-    return NULL;
+    return -1;
   } else {
-  head->fp = p->fp;
-  p->fp->bp = head;
-  p->fp = NULL;
-  p->bp = NULL;
-  return p;
+    head->fp = (*p)->fp;
+    (*p)->fp->bp = head;
+    (*p)->fp = NULL;
+    (*p)->bp = NULL;
+  return 0;
   }
 }
 
