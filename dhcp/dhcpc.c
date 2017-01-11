@@ -1,6 +1,7 @@
 #include "dhcpc.h"
 #include "dhcp_packet.h"
 
+#include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <netinet/in.h>
@@ -12,16 +13,6 @@
 #include <unistd.h>
 #include <signal.h>
 #include <arpa/inet.h>
-
-#define DESTINATION_PORT 51230
-
-#define STAT_INITIAL 0
-#define STAT_WAIT_OFFER 1
-#define STAT_WAIT_ACK 2
-#define STAT_HAVE_IP 3
-
-#define CODE_IN_REQUEST_FIRST 2
-#define CODE_IN_REQUEST_EXTEND 3
 
 static uint32_t get_ip_from_arg(int argc, char * argv[]);
 static int init_dhcpc_struct(struct dhcpc * dhc, uint32_t ip);
@@ -90,8 +81,8 @@ static int send_discover(struct dhcpc * dhc) {
 		exit(1);
 		return -1;
 	}
-	fprintf(stderr, "send DISCOVER\n");
-	print_dhcp_packet(&packet);
+	//	fprintf(stderr, "send DISCOVER\n");
+	print_dhcp_packet(&packet, 1);
 	status_change(dhc, STAT_WAIT_OFFER);
 	return 0;
 }
@@ -137,8 +128,46 @@ static uint32_t get_ip_from_arg(int argc, char * argv[]) {
 }
 
 static int status_change(struct dhcpc * dhc, int to) {
-	fprintf(stderr, "STATE CHANGED \n");
-	dhc->stat = to;
+    char fromc[32];
+  char msgi[32] = "STAT_INITIAL\0";
+  char msgo[32] = "STAT_WAIT_OFFER\0";
+  char msga[32] = "STAT_WAIT_ACK\0";
+  char msgh[32] = "STAT_HAVE_IP\0";
+  char toc[32];
+  switch(dhc->stat){
+  case STAT_INITIAL:
+      strncpy(fromc,msgi,30);
+      break;
+  case STAT_WAIT_OFFER:
+      strncpy(fromc, msgo, 30);
+      break;
+    case STAT_WAIT_ACK:
+      strncpy(fromc, msga, 30);
+      break;
+    case STAT_HAVE_IP:
+      strncpy(fromc, msgh, 30);
+      break;
+    default:
+      break;
+  }
+    switch(to){
+  case STAT_INITIAL:
+      strncpy(toc,msgi,30);
+      break;
+  case STAT_WAIT_OFFER:
+      strncpy(toc, msgo, 30);
+      break;
+    case STAT_WAIT_ACK:
+      strncpy(toc, msga, 30);
+      break;
+    case STAT_HAVE_IP:
+      strncpy(toc, msgh, 30);
+      break;
+    default:
+      break;
+  }  
+    fprintf(stderr ,"STATUS CHANGE  FROM:%s  TO:%s\n", fromc , toc);
+    dhc->stat = to;
 	return 0;
 }
 static int set_signal_and_timer () {
@@ -160,8 +189,8 @@ static int msg_offer (struct dhcpc * dhc){
 			fprintf(stderr, "DHCPOFFER says no available IP in server\n");
 			return -1;
 		} else {
-			fprintf(stderr, "Received packet. message:DHCPOFFER\n");
-			print_dhcp_packet(dhc->buf);
+		  //			fprintf(stderr, "Received packet. message:DHCPOFFER\n");
+		  print_dhcp_packet(dhc->buf, 0);
 			uint16_t time = dhc->buf->time;
 			uint32_t ip = dhc->buf->address;
 			uint32_t mask = dhc->buf->netmask; 
@@ -171,8 +200,8 @@ static int msg_offer (struct dhcpc * dhc){
 					perror("sendto");
 					exit(1);
 			}
-			fprintf(stderr, "send REQUEST\n");
-			print_dhcp_packet(&packet);
+			//			fprintf(stderr, "send REQUEST\n");
+			print_dhcp_packet(&packet, 1);
 			status_change(dhc, STAT_WAIT_ACK);
 			return 0;
 		}	
@@ -189,7 +218,7 @@ static int msg_ack (struct dhcpc * dhc){
 			fprintf(stderr, "ACK msg refused IP assignment. REQUEST Message was illegal.\n");
 			return -1;
 		} else {
-			fprintf(stderr, "Received packet. message:DHCPACK\n");
+		  //fprintf(stderr, "Received packet. message:DHCPACK\n");
 			uint16_t time = dhc->buf->time;
 			uint32_t ip = dhc->buf->address;
 			uint32_t mask = dhc->buf->netmask; 
@@ -203,10 +232,12 @@ static int msg_ack (struct dhcpc * dhc){
 			struct in_addr ipin;
 			ipin.s_addr = ip;
 			char * ipstring = inet_ntoa(ipin);
+			fprintf(stderr, "IP set. IP:%s  ", ipstring);
 			struct in_addr maskin;
 			maskin.s_addr = mask;
 			char * maskstring = inet_ntoa(maskin);
-			fprintf(stderr, "Ip set. IP: %s Mask:%s\n", ipstring, maskstring);
+			fprintf(stderr, "Mask:%s\n", maskstring);
+			print_dhcp_packet(&packet, 1);
 			status_change(dhc, STAT_HAVE_IP);
 			return 0;
 		}
@@ -224,8 +255,8 @@ static int msg_extend_ack (struct dhcpc * dhc){
 			fprintf(stderr, "ACK msg refused IP assignment. REQUEST Message was illegal.\n");
 			return -1;
 		} else {
-			fprintf(stderr, "Received packet. message:DHCPACK\n");
-			print_dhcp_packet(dhc->buf);
+		  //fprintf(stderr, "Received packet. message:DHCPACK\n");
+		  print_dhcp_packet(dhc->buf, 0);
 			uint16_t time = dhc->buf->time;
 			uint32_t ip = dhc->buf->address;
 			uint32_t mask = dhc->buf->netmask; 

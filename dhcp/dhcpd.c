@@ -133,7 +133,7 @@ static int recv_packet(struct dhcpd * dd) {
 			perror ("recvfrom error");
 			exit(1);
 		}
-		print_dhcp_packet(dd->buf);
+		print_dhcp_packet(dd->buf, 0);
 		return 0;
 }
 
@@ -142,7 +142,7 @@ static int client_check(struct dhcpd * dd, struct c_entry **client) {
   uint32_t id;
   id = ntohl(dd->bufskt.sin_addr.s_addr);
   search_client(&(dd->c_entry_head), client, id);
-  if (client == NULL) {
+  if (*client == NULL) {
 //    client = make_new_client(&(dd->c_entry_head), dd->bufskt.sin_addr.s_addr, 0, 0, NOT_IP_ASSIGNED, PACKET_WAIT_TTL);
     fprintf(stderr,"debug client is null\n");
     	return 1;
@@ -161,7 +161,7 @@ static int mydhcpd_input_check(int argc, char * argv[]) {
 static int msg_discover(struct dhcpd * dd, struct c_entry *client) {
 	struct dhcp_packet packet;
 	if (dd->buf->type == DHCPDISCOVER) {
-	  fprintf(stderr, "RECEIVE MESSAGE :DHCPDISCOVER\n");
+	  //fprintf(stderr, "RECEIVE MESSAGE :DHCPDISCOVER\n");
 				uint8_t code;
 				struct ip_list * ip;
 				int count;
@@ -171,9 +171,11 @@ static int msg_discover(struct dhcpd * dd, struct c_entry *client) {
 				} else{
 					uint32_t n_ip;
 					uint32_t n_mask;
+					uint32_t id;
+					id = ntohl(dd->bufskt.sin_addr.s_addr);
 					n_ip = ntohl(ip->ip);
 					n_mask = ntohl(ip->mask);
-					client = make_new_client(&(dd->c_entry_head), dd->bufskt.sin_addr.s_addr, n_ip, n_mask, STAT_WAIT_DISCOVER, PACKET_WAIT_TTL);
+					client = make_new_client(&(dd->c_entry_head), id, n_ip, n_mask, STAT_WAIT_DISCOVER, PACKET_WAIT_TTL);
 					code = 0;
 				}
 				uint32_t s_ip, s_mask;
@@ -182,8 +184,8 @@ static int msg_discover(struct dhcpd * dd, struct c_entry *client) {
 				init_dhcp_packet(&packet, DHCPOFFER,code,REQUEST_WAIT_TIME,s_ip, s_mask);
 				socklen_t sklen = sizeof(dd->bufskt);
 				sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
-				fprintf(stderr, "SEND MESSAGE :DHCPOFFER\n");
-				print_dhcp_packet(&packet);
+				//fprintf(stderr, "SEND MESSAGE :DHCPOFFER\n");
+				print_dhcp_packet(&packet, 1);
 				client_status_change(client, STAT_WAIT_REQUEST);
 				return 0;
 			} else {
@@ -194,7 +196,7 @@ static int msg_discover(struct dhcpd * dd, struct c_entry *client) {
 static int msg_request(struct dhcpd * dd, struct c_entry *client) {
 	struct dhcp_packet packet;
 	if (dd->buf->type == DHCPREQUEST) {
-	  fprintf(stderr, "RECEIVE MESSAGE :DHCPREQUEST\n");
+	  //	  fprintf(stderr, "RECEIVE MESSAGE :DHCPREQUEST\n");
 	  uint8_t code;
 		//send DHCPACK
 		if (client->cli_addr.s_addr == dd->buf->address && client->netmask.s_addr == dd->buf->netmask && client->ttl >= dd->buf->time) {
@@ -205,11 +207,11 @@ static int msg_request(struct dhcpd * dd, struct c_entry *client) {
 			code = 4; //miss
 		}
 
-		init_dhcp_packet(&packet, DHCPACK, code, IP_TTL, client->cli_addr.s_addr, client->netmask.s_addr);
+		init_dhcp_packet(&packet, DHCPACK, code, REQUEST_WAIT_TIME, client->cli_addr.s_addr, client->netmask.s_addr);
 		socklen_t sklen = sizeof(dd->bufskt);
 		sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
-		fprintf(stderr, "SEND MESSAGE :DHCPACK\n");
-		print_dhcp_packet(&packet);
+		//fprintf(stderr, "SEND MESSAGE\n");
+		print_dhcp_packet(&packet, 1);
 		if (code == 0) client_status_change(client, STAT_IP_ASSIGNMENT);// can't use stat_wait_request_2
 		else rm_client(client);// remove no siyou
 	} else {
@@ -219,7 +221,7 @@ static int msg_request(struct dhcpd * dd, struct c_entry *client) {
 }
 static int msg_release(struct dhcpd * dd, struct c_entry *client) {
 	if (dd->buf->type == STAT_IP_ASSIGNMENT) {
-	  	  fprintf(stderr, "RECEIVE MESSAGE :DHCPRELEASE\n");
+	  //	  	  fprintf(stderr, "RECEIVE MESSAGE :DHCPRELEASE\n");
 		rm_client(client);
 	} else {
 		fprintf(stderr, "Message error: state is not true, should be STAT_IP_ASSIGNMENT\n");

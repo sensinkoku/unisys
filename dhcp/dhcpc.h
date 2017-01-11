@@ -4,11 +4,22 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdint.h>
+/*
 #define STAT_WAIT_DISCOVER 0
 #define STAT_WAIT_REQUEST 1
 #define STAT_IP_ASSIGNMENT 2
 #define STAT_WAIT_REQUEST_2 3
 #define NOT_IP_ASSIGNED 4
+*/
+#define DESTINATION_PORT 51230
+
+#define STAT_INITIAL 0
+#define STAT_WAIT_OFFER 1
+#define STAT_WAIT_ACK 2
+#define STAT_HAVE_IP 3
+
+#define CODE_IN_REQUEST_FIRST 2
+#define CODE_IN_REQUEST_EXTEND 3
 
 #define PACKET_WAIT_TTL 10
 //struct in_addr;

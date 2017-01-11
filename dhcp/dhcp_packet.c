@@ -16,7 +16,7 @@ void init_dhcp_packet(struct dhcp_packet * p,uint8_t type, uint8_t code, uint16_
 	p->netmask = mask;
 	return;
 }
-void print_dhcp_packet(struct dhcp_packet *p) {
+void print_dhcp_packet(struct dhcp_packet *p, int i) {
   char stat[32];
   char msgd[32] = "DHCPDISCOVER\0";
   char msgo[32] = "DHCPOFFER\0";
@@ -40,6 +40,9 @@ void print_dhcp_packet(struct dhcp_packet *p) {
     strncpy(stat, msgrl, 30);
     break;
   }
+  
+  if (i == 0) fprintf(stderr, "RECEIVED PACKET\n");
+  else if (i == 1) fprintf(stderr, "SEND PACKET\n");
   fprintf(stderr, "//////////////////////\n");
   fprintf(stderr, "packet detail\n");
   fprintf(stderr, "TYPE : %s\n", stat);
@@ -49,12 +52,11 @@ void print_dhcp_packet(struct dhcp_packet *p) {
   struct in_addr ipin;
   ipin.s_addr = ntohl(p->address);
   char * ipstring = inet_ntoa(ipin);
+  fprintf(stderr, "IP ADDRESS : %s\n",ipstring);
   struct in_addr maskin;
   maskin.s_addr = ntohl(p->netmask);
   char * maskstring = inet_ntoa(maskin);
-
-  fprintf(stderr, "IP ADDRESS : %s\n",ipstring);
   fprintf(stderr, "MASK : %s\n",maskstring);
-  fprintf(stderr, "//////////////////////\n");
+  fprintf(stderr, "//////////////////////\n\n");
     return;
 }

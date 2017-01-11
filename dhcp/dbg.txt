@@ -37,10 +37,25 @@ $5 = {fp = 0x7fffffffe048, bp = 0x7fffffffe048, ip = 117483712,
 (gdb) 
 
 残りやること
-IPのリスト受け取り正しく
-ip, mask値の調整
+ok IPのリスト受け取り正しく
+ok ip, mask値の調整
 
+ttlでタイムアウトを追加
+select()使う
 状態遷移を正しく
 ポートを追加（additional）
+タイマー追加
+void settimer() {
+     struct timeval value = {1,0,1,0};
+     struct timeval ovalue = {0,0,0,0};
+     settimer(REAL_TIME, value, ovalue);
+}
+signal();でシグナル受信の動作を追加
+フラグセットだけ
 
-
+select()
+select()で記述子はソケットだけ
+errnoに4番が入れられるのでそれのちぇっく
+入ってたら
+フラグを見て全部を0下げる
+そこからイベント

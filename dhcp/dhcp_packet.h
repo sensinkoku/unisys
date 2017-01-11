@@ -16,5 +16,5 @@ struct dhcp_packet{
 	uint32_t netmask;
 };
 extern void init_dhcp_packet(struct dhcp_packet * p,uint8_t type, uint8_t code, uint16_t time, uint32_t ip, uint32_t mask);
-extern void print_dhcp_packet(struct dhcp_packet *p);
+extern void print_dhcp_packet(struct dhcp_packet *p, int i); //i = 0 receice,  i = 1 send
 #endif //DHCP_PACKET_H_
