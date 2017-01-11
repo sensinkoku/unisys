@@ -21,6 +21,7 @@ struct c_entry{
   //below: network byte order
   struct in_addr id; //idenfier
   //  struct in_addr addr;
+  //host order
   struct in_addr cli_addr;
   struct in_addr netmask;
   uint16_t ttl; // 10sec is tyme out for waiting message except DHCPDISCOVER

@@ -200,11 +200,12 @@ static int msg_ack (struct dhcpc * dhc){
 			dhc->ipsetor = 1;
 			ip = ntohl(ip);
 			mask = ntohl(mask);
-			struct in_addr in;
-			in.s_addr = ip;
-			char * ipstring = inet_ntoa(in);
-			in.s_addr = mask;
-			char * maskstring = inet_ntoa(in);
+			struct in_addr ipin;
+			ipin.s_addr = ip;
+			char * ipstring = inet_ntoa(ipin);
+			struct in_addr maskin;
+			maskin.s_addr = mask;
+			char * maskstring = inet_ntoa(maskin);
 			fprintf(stderr, "Ip set. IP: %s Mask:%s\n", ipstring, maskstring);
 			status_change(dhc, STAT_HAVE_IP);
 			return 0;
@@ -235,11 +236,12 @@ static int msg_extend_ack (struct dhcpc * dhc){
 			dhc->ipsetor = 1;
 			ip = ntohl(ip);
 			mask = ntohl(ip);
-			struct in_addr in;
-			in.s_addr = ip;
-			char * ipstring = inet_ntoa(in);
-			in.s_addr = mask;
-			char * maskstring = inet_ntoa(in);
+			struct in_addr ipin;
+			ipin.s_addr = ip;
+			char * ipstring = inet_ntoa(ipin);
+			struct in_addr maskin;
+			maskin.s_addr = mask;
+			char * maskstring = inet_ntoa(maskin);
 			fprintf(stderr, "Ip available time extended. IP: %s Mask:%s\n", ipstring, maskstring);
 			return 0;
 		}
