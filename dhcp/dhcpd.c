@@ -91,7 +91,7 @@ static int work_dhcp_server(struct dhcpd * dd, struct c_entry *client) {
 				fprintf(stderr, "not proper message\n");
 				return -1;
 			}
-		} else
+		} else {
 		switch(client->stat) {
 		/*case STAT_WAIT_DISCOVER:
 			if (msg_discover(dd, client) < 0) {
@@ -119,6 +119,7 @@ static int work_dhcp_server(struct dhcpd * dd, struct c_entry *client) {
 			//error messaage
 			break;
 		}
+	}
 }
 
 static int recv_packet(struct dhcpd * dd) {
@@ -126,9 +127,11 @@ static int recv_packet(struct dhcpd * dd) {
 		socklen_t sktlen;
 		sktlen = sizeof dd->bufskt;
 		if ((count  = recvfrom (dd->s, dd->buf, sizeof (struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), &sktlen)) < 0) {
+			printf("count is %d\n", count);
 			perror ("recvfrom error");
 			exit(1);
 		}
+		printf("count is %d\n", count);
 		return 0;
 }
 
