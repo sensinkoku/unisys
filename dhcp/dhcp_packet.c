@@ -46,11 +46,12 @@ void print_dhcp_packet(struct dhcp_packet *p) {
   fprintf(stderr, "CODE : %d\n", (int)p->code);
   fprintf(stderr, "TIME : %d\n", (int)p->time);
   uint32_t ip, mask;
-  struct in_addr in;
-  in.s_addr = ntohl(p->address);
-  char * ipstring = inet_ntoa(in);
-  in.s_addr = ntohl(p->netmask);
-  char * maskstring = inet_ntoa(in);
+  struct in_addr ipin;
+  ipin.s_addr = ntohl(p->address);
+  char * ipstring = inet_ntoa(ipin);
+  struct in_addr maskin;
+  maskin.s_addr = ntohl(p->netmask);
+  char * maskstring = inet_ntoa(maskin);
   fprintf(stderr, "IP ADDRESS : %s\n",ipstring);
   fprintf(stderr, "MASK : %s\n",maskstring);
   fprintf(stderr, "//////////////////////\n");

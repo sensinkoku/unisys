@@ -140,7 +140,7 @@ static int recv_packet(struct dhcpd * dd) {
 //return 1 if not exist, return 0 already exist, if case 1 client pointer is NULL
 static int client_check(struct dhcpd * dd, struct c_entry **client) {
   uint32_t id;
-  id = dd->bufskt.sin_addr.s_addr;
+  id = ntohl(dd->bufskt.sin_addr.s_addr);
   search_client(&(dd->c_entry_head), client, id);
   if (client == NULL) {
 //    client = make_new_client(&(dd->c_entry_head), dd->bufskt.sin_addr.s_addr, 0, 0, NOT_IP_ASSIGNED, PACKET_WAIT_TTL);
@@ -168,7 +168,11 @@ static int msg_discover(struct dhcpd * dd, struct c_entry *client) {
 					fprintf(stderr, "msg_discover: can't assign because no ip\n");
 					code = 129;
 				} else{
-					client = make_new_client(&(dd->c_entry_head), dd->bufskt.sin_addr.s_addr, ip->ip, ip->mask, STAT_WAIT_DISCOVER, PACKET_WAIT_TTL);
+					uint32_t n_ip;
+					uint32_t n_mask;
+					n_ip = ntohl(ip->ip);
+					n_mask = ntohl(ip->mask);
+					client = make_new_client(&(dd->c_entry_head), dd->bufskt.sin_addr.s_addr, n_ip, n_mask, STAT_WAIT_DISCOVER, PACKET_WAIT_TTL);
 					code = 0;
 				}
 				uint32_t s_ip, s_mask;
@@ -199,6 +203,7 @@ static int msg_request(struct dhcpd * dd, struct c_entry *client) {
 			fprintf(stderr, "In message request, illegal IP and Mask or TTL\n");
 			code = 4; //miss
 		}
+
 		init_dhcp_packet(&packet, DHCPACK, code, IP_TTL, client->cli_addr.s_addr, client->netmask.s_addr);
 		socklen_t sklen = sizeof(dd->bufskt);
 		sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
