@@ -14,6 +14,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <arpa/inet.h>
+#include <errno.h>
 
 static uint32_t get_ip_from_arg(int argc, char * argv[]);
 static int init_dhcpc_struct(struct dhcpc * dhc, uint32_t ip);
@@ -46,14 +47,25 @@ int init_dhcpc(struct dhcpc * dhc, int argc, char * argv[]) {
 	uint32_t ip;// host_order
 	ip = get_ip_from_arg(argc, argv);
 	init_dhcpc_struct(dhc, ip);
+	set_signal_and_timer();
 	dhcpc_loop(dhc);
 	return 0;
 }
 static int recv_packet(struct dhcpc * dhc) {
+		int fds;
 		int count;
+		fd_set rdfds;
+		FD_ZERO(&rdfds);
+		FD_SET(dhc->s, &rdfds);
 		socklen_t sktlen;
 		sktlen = sizeof dhc->skt;
-		if ((count  = recvfrom (dhc->s, dhc->buf, sizeof (struct dhcp_packet), 0, (struct sockaddr *)&(dhc->skt), &sktlen)) < 0) {
+		fds = select((dhc->s)+1, &rdfds, NULL, NULL, NULL);
+		if (errno == 4) {
+			fprintf(stderr,"/sec");
+			signal_alrm_etc(dhc);
+			errno = 0;
+			return -1;
+		} else if ((count  = recvfrom (dhc->s, dhc->buf, sizeof (struct dhcp_packet), 0, (struct sockaddr *)&(dhc->skt), &sktlen)) < 0) {
 			perror ("recvfrom error");
 			exit(1);
 		}
@@ -62,7 +74,8 @@ static int recv_packet(struct dhcpc * dhc) {
 static int dhcpc_loop(struct dhcpc * dhc) {
 	send_discover (dhc);
 	for (;;) {
-		recv_packet(dhc);
+		int i;
+		if((i = recv_packet(dhc)) < 0) continue;
 		switch(dhc->stat){
 			case STAT_WAIT_OFFER:
 				msg_offer(dhc);
@@ -78,7 +91,7 @@ static int dhcpc_loop(struct dhcpc * dhc) {
 				msg_offer(dhc);
 				break;
 			case STAT_WAIT_ACK_2ND:
-				msg_ack(dhc);
+				msg_extend_ack(dhc);
 				break;
 			case STAT_WAIT_EXT_ACK:
 				msg_ack(dhc);
@@ -126,7 +139,8 @@ static int init_dhcpc_struct(struct dhcpc * dhc, uint32_t ip) {
 	dhc->skt.sin_family = AF_INET;
 	dhc->skt.sin_port = htons(port); //network order
 	dhc->skt.sin_addr.s_addr = htonl(ip); //network order
-	dhc->ttlcounter = 100;
+	dhc->ttlcounter = PACKET_WAIT_TTL;
+	dhc->ttl = PACKET_WAIT_TTL;
 	dhc->stat = STAT_INITIAL;
 	return 0;
 }
@@ -293,17 +307,20 @@ static int msg_extend_ack (struct dhcpc * dhc){
 			dhc->cli_addr.s_addr = ip;//network order
 			dhc->netmask.s_addr = mask; //network order
 			dhc->ttl = dhc->buf->time;
-			dhc->ttlcounter = dhc->ttl;
+			dhc->ttlcounter = (dhc->ttl)/2;
 			dhc->ipsetor = 1;
+
 			ip = ntohl(ip);
-			mask = ntohl(ip);
+			mask = ntohl(mask);
 			struct in_addr ipin;
 			ipin.s_addr = ip;
 			char * ipstring = inet_ntoa(ipin);
+			fprintf(stderr, "Ip available time extended. IP: %s ", ipstring);
 			struct in_addr maskin;
 			maskin.s_addr = mask;
 			char * maskstring = inet_ntoa(maskin);
-			fprintf(stderr, "Ip available time extended. IP: %s Mask:%s\n", ipstring, maskstring);
+			fprintf(stderr, "Mask:%s\n", maskstring);
+			status_change(dhc, STAT_IN_USE);
 			return 0;
 		}
 		
@@ -332,17 +349,26 @@ static void signal_hup() {
 	return;
 }
 static void signal_alrm_etc(struct dhcpc *dhc) {
+				struct dhcp_packet packet;
 	if(flag_hup != 0) {
 		if (dhc->stat != STAT_IN_USE && dhc->stat != STAT_WAIT_EXT_ACK) {
 			fprintf(stderr, "SIGHUP: IP is not in use.\n");
-			close(dhc->s);
 			exit(1);
 		} else {
-				
+			fprintf(stderr, "SIGHUP: RELEASE IP adress and exit.\n");
+			uint32_t ip = dhc->cli_addr.s_addr;
+			init_dhcp_packet(&packet, DHCPRELEASE, 0, 0, ip, 0);
+			int count;
+			if ((count = sendto(dhc->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dhc->skt), sizeof dhc->skt)) < 0) {
+					perror("sendto");
+					exit(1);
+			}	
 		}
+		print_dhcp_packet(&packet, 1);
+		exit(1);
 		return;
 	}
-	if(flag_alrm != 0) {
+	if (flag_alrm != 0) {
 		(dhc->ttlcounter)--;
 		if (dhc->ttlcounter <= 0) alarm_work_dhcpc(dhc);
 	}
@@ -397,8 +423,8 @@ static void alarm_work_dhcpc(struct dhcpc * dhc) {
 		case STAT_IN_USE:
 			{
 			uint16_t time = dhc->ipttl;
-			uint32_t ip = htonl(dhc->cli_addr.s_addr);
-			uint32_t mask = htonl(dhc->netmask.s_addr);
+			uint32_t ip = dhc->cli_addr.s_addr;
+			uint32_t mask = dhc->netmask.s_addr;
 			init_dhcp_packet(&packet, DHCPREQUEST, CODE_IN_REQUEST_EXTEND, time, ip, mask);
 			int count;
 			if ((count = sendto(dhc->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dhc->skt), sizeof dhc->skt)) < 0) {

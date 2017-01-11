@@ -130,6 +130,7 @@ static int work_dhcp_server(struct dhcpd * dd, struct c_entry *client) {
 				fprintf(stderr, "not proper message in stat STAT_IP_ASSIGNMENT\n");
 				return -1;
 			}
+			break;
 		default:
 		  fprintf(stderr, "error: client have no status\n");
 		  return -1;
@@ -155,8 +156,9 @@ static int recv_packet(struct dhcpd * dd) {
 		if (FD_ISSET(hpr->mysocd, &rdfds)) {*/
 		fds = select((dd->s)+1, &rdfds, NULL, NULL, NULL);
 		if (errno == 4) {
-			fprintf(stderr,"debug timeout\n");
-
+			//fprintf(stderr,"debug timeout\n");
+			fprintf(stderr,"/sec");
+			signal_alrm_etc(dd);
 			errno = 0;
 			return -1;
 		} else {
@@ -215,7 +217,7 @@ static int msg_discover(struct dhcpd * dd, struct c_entry *client) {
 				uint32_t s_ip, s_mask;
 				s_ip = htonl(ip->ip);
 				s_mask = htonl(ip->mask);
-				init_dhcp_packet(&packet, DHCPOFFER,code,REQUEST_WAIT_TIME,s_ip, s_mask);
+				init_dhcp_packet(&packet, DHCPOFFER,code, dd->ipttl,s_ip, s_mask);
 				socklen_t sklen = sizeof(dd->bufskt);
 				sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
 				//fprintf(stderr, "SEND MESSAGE :DHCPOFFER\n");
@@ -233,19 +235,20 @@ static int msg_request(struct dhcpd * dd, struct c_entry *client) {
 	  //	  fprintf(stderr, "RECEIVE MESSAGE :DHCPREQUEST\n");
 	  uint8_t code;
 		//send DHCPACK
-		if (client->cli_addr.s_addr == dd->buf->address && client->netmask.s_addr == dd->buf->netmask && client->ttl >= dd->buf->time) {
+		if (client->cli_addr.s_addr == dd->buf->address && client->netmask.s_addr == dd->buf->netmask && client->ttl <= dd->ipttl) {
 		//search client by id? and not exist and can't match ip and mask
 			code = 0; //success
 		} else {
 			fprintf(stderr, "In message request, illegal IP and Mask or TTL\n");
 			code = 4; //miss
 		}
-
-		init_dhcp_packet(&packet, DHCPACK, code, REQUEST_WAIT_TIME, client->cli_addr.s_addr, client->netmask.s_addr);
+		init_dhcp_packet(&packet, DHCPACK, code, dd->buf->time, client->cli_addr.s_addr, client->netmask.s_addr);
 		socklen_t sklen = sizeof(dd->bufskt);
 		sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
 		//fprintf(stderr, "SEND MESSAGE\n");
 		print_dhcp_packet(&packet, 1);
+		client->ttl = dd->buf->time;
+		client->ttlcounter = dd->buf->time;
 		if (code == 0) client_status_change(client, STAT_IN_USE);// can't use stat_wait_request_2
 		else rm_client(client);// remove no siyou
 	} else {
@@ -254,11 +257,29 @@ static int msg_request(struct dhcpd * dd, struct c_entry *client) {
 	}
 }
 static int msg_release(struct dhcpd * dd, struct c_entry *client) {
+	struct dhcp_packet packet;
 	if (dd->buf->type == DHCPRELEASE) {
 	  //	  	  fprintf(stderr, "RECEIVE MESSAGE :DHCPRELEASE\n");
 		rm_client(client);
 	} else if (dd->buf->type == DHCPREQUEST) {
-
+		uint8_t code;
+		//send DHCPACK
+		if (client->cli_addr.s_addr == dd->buf->address && client->netmask.s_addr == dd->buf->netmask && client->ttl <= dd->ipttl) {
+		//search client by id? and not exist and can't match ip and mask
+			code = 0; //success
+		} else {
+			fprintf(stderr, "In message request, illegal IP and Mask or TTL\n");
+			code = 4; //miss
+		}
+		init_dhcp_packet(&packet, DHCPACK, code, dd->buf->time, client->cli_addr.s_addr, client->netmask.s_addr);
+		socklen_t sklen = sizeof(dd->bufskt);
+		sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
+		//fprintf(stderr, "SEND MESSAGE\n");
+		print_dhcp_packet(&packet, 1);
+		client->ttl = dd->buf->time;
+		client->ttlcounter = dd->buf->time;
+		if (code == 0) client_status_change(client, STAT_IN_USE);// can't use stat_wait_request_2
+		else rm_client(client);
 	}else{
 		fprintf(stderr, "Message error: state is not true, should be STAT_IP_ASSIGNMENT\n");
 		return -1;
@@ -279,13 +300,15 @@ static void signal_alrm() {
 static void signal_alrm_etc(struct dhcpd *dd) {
 	if(flag_alrm != 0) {
 		struct c_entry * c;
+		struct c_entry *nc;
 		c = dd->c_entry_head.fp;
 		while (c != &(dd->c_entry_head)) {
 			c->ttlcounter = c->ttlcounter - flag_alrm;
+			nc = c->fp;
 			if (c->ttlcounter < 0) {
 				alarm_work_dhcpd(c);
 			}
-			c = c->fp;
+			c = nc;
 		}
 	}
 	flag_alrm = 0;
@@ -298,16 +321,18 @@ static int alarm_work_dhcpd(struct c_entry *c) {
 			c->stat = STAT_WAIT_REQUEST2;
 			c->ttlcounter = PACKET_WAIT_TTL;
 			c->ttl = PACKET_WAIT_TTL;
+			fprintf(stderr, "DBG Timeout REQUEST\n");
 		break;
 		case STAT_WAIT_REQUEST2:
+			fprintf(stderr, "DBG Timeout REQUEST2\n");
 			rm_client(c);
 		break;
 		case STAT_IN_USE:
-		fprintf(stderr, "Timeout \n");
+			fprintf(stderr, "Timeout in STAT_IN_USE remove client\n");
 			rm_client(c);
 		break;
 		default:
-		fprintf(stderr, "debug: TTL < 0 but state is not \n");
+			fprintf(stderr, "debug: TTL < 0 but state is not \n");
 		break;
 	}
 	return 0;

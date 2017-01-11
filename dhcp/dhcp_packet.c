@@ -22,7 +22,7 @@ void print_dhcp_packet(struct dhcp_packet *p, int i) {
   char msgo[32] = "DHCPOFFER\0";
   char msgr[32] = "DHCPREQUEST\0";
   char msga[32] = "DHCPACK\0";
-  char msgrl[32] ="DHCPRE+EASE\0";
+  char msgrl[32] ="DHCPRELEASE\0";
   switch(p->type){
   case DHCPDISCOVER:
     strncpy(stat, msgd, 30);
