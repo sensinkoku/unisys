@@ -1,0 +1,39 @@
+$2 = {s = 7, myskt = {sin_family = 0, sin_port = 0, sin_addr = {
+      s_addr = 4195931}, sin_zero = "\000\000\000\000`\341\377\377"}, skt = {
+    sin_family = 2, sin_port = 7880, sin_addr = {s_addr = 0}, 
+    sin_zero = "\000\000\000\000\240\213\245", <incomplete sequence \367>}, 
+  buf = 0x401120, stat = 1, ttlcounter = 100, msgttlcounter = 4196160, 
+  ipsetor = 0, cli_addr = {s_addr = 4294959424}, netmask = {s_addr = 32767}, 
+  ttl = 0, msgttl = 0
+
+client
+
+
+server
+
+$2 = {s = 8, myskt = {sin_family = 2, sin_port = 7880, sin_addr = {
+      s_addr = 0}, sin_zero = "\000\000\000\000\000\000\000"}, buf = 0x603290, 
+  bufskt = {sin_family = 2, sin_port = 31698, sin_addr = {s_addr = 16777343}, 
+    sin_zero = "\000\000\000\000\000\000\000"}, c_entry_head = {
+    fp = 0x7fffffffe020, bp = 0x7fffffffe020, stat = -140145760, 
+    ttlcounter = 32767, id = {s_addr = 0}, cli_addr = {s_addr = 0}, netmask = {
+      s_addr = 0}, ttl = 0}, ip_list_head = {fp = 0x603250, bp = 0x603270, 
+    ip = 0, mask = 0}}
+
+(gdb) p (dd->buf)
+$4 = (struct dhcp_packet *) 0x603290
+(gdb) p *(dd->buf)
+$5 = {type = 1 '\001', code = 0 '\000', time = 0, address = 0, netmask = 0}
+
+
+
+(gdb) print *(dd->c_entry_head->fp)
+$4 = {fp = 0x7fffffffe020, bp = 0x7fffffffe020, stat = 1, ttlcounter = 10, 
+  id = {s_addr = 16777343}, cli_addr = {s_addr = 83929280}, netmask = {
+    s_addr = 16777215}, ttl = 10}
+(gdb) print *(dd->ip_list_head->fp)
+$5 = {fp = 0x7fffffffe048, bp = 0x7fffffffe048, ip = 117483712, 
+  mask = 16777215}
+(gdb) 
+
+

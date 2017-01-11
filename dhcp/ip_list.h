@@ -5,7 +5,7 @@ struct ip_list{
   // Bi-directional pointers
   struct ip_list * fp;
   struct ip_list * bp;
-  // ips
+  // ips hostorder
   uint32_t ip;
   uint32_t mask;
 };

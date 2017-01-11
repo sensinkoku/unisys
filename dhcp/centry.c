@@ -23,16 +23,16 @@ struct c_entry* make_new_client(struct c_entry * head, uint32_t id, uint32_t ip,
   insert_centry_list(head, newce);
   return newce;
 }
-struct c_entry * search_client (struct c_entry *head, uint32_t id) {
-  struct c_entry * p;
-  p = head->fp;
-  while (p != head) {
-    if (p->id.s_addr == id) {
-      return p;
+int search_client (struct c_entry *head, struct c_entry ** client,uint32_t id) {
+  *client = head->fp;
+  while (*client != head) {
+    if ((*client)->id.s_addr == id) {
+      return 0;
     }
-    p = p->fp;
+    *client = (*client)->fp;
   }
-    return NULL;
+  *client = NULL;
+    return -1;
 }
 /*int rm_client(struct c_entry * head, uint32_t id) {
   struct c_entry * p;
@@ -83,12 +83,12 @@ int print_client_list(struct c_entry * head) {
 }
 int client_status_change (struct c_entry *c, int to) {
   char fromc[32];
-  char msgw[32] = "STAT_WAIT_ER\0";
+  char msgw[32] = "STAT_WAIT_DISCOVER\0";
   char msgr[32] = "STAT_WAIT_REQUEST\0";
   char msga[32] = "STAT_IP_ASSIGNED\0";
   char msgr2[32] = "STAT_WAIT_REQUEST_2\0";
   char toc[32];
-  switch(to){
+  switch(c->stat){
     case STAT_WAIT_DISCOVER:
       strncpy(fromc,msgw,30);
       break;
@@ -104,6 +104,24 @@ int client_status_change (struct c_entry *c, int to) {
     default:
       break;
   }
+switch(to){
+    case STAT_WAIT_DISCOVER:
+      strncpy(toc,msgw,30);
+      break;
+    case STAT_WAIT_REQUEST:
+      strncpy(toc, msgr, 30);
+      break;
+    case STAT_IP_ASSIGNMENT:
+      strncpy(toc, msga, 30);
+      break;
+    case STAT_WAIT_REQUEST_2:
+      strncpy(toc, msgr2, 30);
+      break;
+    default:
+      break;
+  }
+  
+ fprintf(stderr ,"STATUS CHANGE  FROM:%s  TO:%s\n", fromc , toc);
   c->stat = to;
   return 0;
 }

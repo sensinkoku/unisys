@@ -28,7 +28,7 @@ struct c_entry{
 //extern functions
 extern int init_head_struct(struct c_entry*head,uint32_t id);
 extern struct c_entry* make_new_client(struct c_entry * head, uint32_t id, uint32_t ip, uint32_t mask, short stat, int ttl);
-extern struct c_entry* search_client(struct c_entry * head, uint32_t id);
+extern int search_client(struct c_entry * head,struct c_entry ** client ,uint32_t id);
 extern int rm_client(struct c_entry * c);
 extern int extent_ttl(struct c_entry *c, uint16_t ttl);
 extern int print_client_list(struct c_entry * head);

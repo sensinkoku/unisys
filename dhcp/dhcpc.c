@@ -91,6 +91,7 @@ static int send_discover(struct dhcpc * dhc) {
 		return -1;
 	}
 	fprintf(stderr, "send DISCOVER\n");
+	print_dhcp_packet(&packet);
 	status_change(dhc, STAT_WAIT_OFFER);
 	return 0;
 }
@@ -112,6 +113,7 @@ static int init_dhcpc_struct(struct dhcpc * dhc, uint32_t ip) {
 
 
 	uint16_t port = DESTINATION_PORT;
+	dhc->buf = (struct dhcp_packet *)malloc(sizeof(struct dhcp_packet));
 	dhc->skt.sin_family = AF_INET;
 	dhc->skt.sin_port = htons(port); //network order
 	dhc->skt.sin_addr.s_addr = htonl(ip); //network order
@@ -159,6 +161,7 @@ static int msg_offer (struct dhcpc * dhc){
 			return -1;
 		} else {
 			fprintf(stderr, "Received packet. message:DHCPOFFER\n");
+			print_dhcp_packet(dhc->buf);
 			uint16_t time = dhc->buf->time;
 			uint32_t ip = dhc->buf->address;
 			uint32_t mask = dhc->buf->netmask; 
@@ -169,6 +172,7 @@ static int msg_offer (struct dhcpc * dhc){
 					exit(1);
 			}
 			fprintf(stderr, "send REQUEST\n");
+			print_dhcp_packet(&packet);
 			status_change(dhc, STAT_WAIT_ACK);
 			return 0;
 		}	
@@ -195,7 +199,7 @@ static int msg_ack (struct dhcpc * dhc){
 			dhc->ttlcounter = dhc->ttl;
 			dhc->ipsetor = 1;
 			ip = ntohl(ip);
-			mask = ntohl(ip);
+			mask = ntohl(mask);
 			struct in_addr in;
 			in.s_addr = ip;
 			char * ipstring = inet_ntoa(in);
@@ -220,6 +224,7 @@ static int msg_extend_ack (struct dhcpc * dhc){
 			return -1;
 		} else {
 			fprintf(stderr, "Received packet. message:DHCPACK\n");
+			print_dhcp_packet(dhc->buf);
 			uint16_t time = dhc->buf->time;
 			uint32_t ip = dhc->buf->address;
 			uint32_t mask = dhc->buf->netmask; 
