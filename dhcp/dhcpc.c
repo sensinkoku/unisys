@@ -113,7 +113,7 @@ static int send_discover(struct dhcpc * dhc) {
 		return -1;
 	}
 	//	fprintf(stderr, "send DISCOVER\n");
-	print_dhcp_packet(&packet, 1, dhc->skt.sin_addr.s_addr);
+	print_dhcp_packet(&packet, 1, htonl(dhc->skt.sin_addr.s_addr));
 	status_change(dhc, STAT_WAIT_OFFER);
 	return 0;
 }
@@ -138,7 +138,7 @@ static int init_dhcpc_struct(struct dhcpc * dhc, uint32_t ip) {
 	dhc->buf = (struct dhcp_packet *)malloc(sizeof(struct dhcp_packet));
 	dhc->skt.sin_family = AF_INET;
 	dhc->skt.sin_port = htons(port); //network order
-	dhc->skt.sin_addr.s_addr = htonl(ip); //network order
+	dhc->skt.sin_addr.s_addr = ip; //network order
 	dhc->ttlcounter = PACKET_WAIT_TTL;
 	dhc->ttl = PACKET_WAIT_TTL;
 	dhc->stat = STAT_INITIAL;

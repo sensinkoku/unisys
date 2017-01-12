@@ -77,7 +77,7 @@ static int socket_and_bind(struct dhcpd * dd) {
 		perror ("server socket open error");
 		exit(1);
 	}
-	bzero(&(dd->myskt), sizeof dd->myskt);
+	//	bzero(&(dd->myskt), sizeof dd->myskt);
 	in_port_t portnum = DHCPSERVERPORT;
 	dd->myskt.sin_family = AF_INET;
 	dd->myskt.sin_port = htons(portnum);
