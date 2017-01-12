@@ -113,7 +113,7 @@ static int send_discover(struct dhcpc * dhc) {
 		return -1;
 	}
 	//	fprintf(stderr, "send DISCOVER\n");
-	print_dhcp_packet(&packet, 1);
+	print_dhcp_packet(&packet, 1, dhc->skt.sin_addr.s_addr);
 	status_change(dhc, STAT_WAIT_OFFER);
 	return 0;
 }
@@ -230,9 +230,9 @@ static int msg_offer (struct dhcpc * dhc){
 			return -1;
 		} else {
 		  //			fprintf(stderr, "Received packet. message:DHCPOFFER\n");
-			dhc->cli_addr.s_addr = ntohl(dhc->buf->address);
-			dhc->netmask.s_addr = ntohl(dhc->buf->netmask);
-		    print_dhcp_packet(dhc->buf, 0);
+			dhc->cli_addr.s_addr = dhc->buf->address;
+			dhc->netmask.s_addr = dhc->buf->netmask;
+		    print_dhcp_packet(dhc->buf, 0, dhc->cli_addr.s_addr);
 			uint16_t time = dhc->buf->time;
 			uint32_t ip = dhc->buf->address;
 			uint32_t mask = dhc->buf->netmask; 
@@ -243,7 +243,7 @@ static int msg_offer (struct dhcpc * dhc){
 					exit(1);
 			}
 			//			fprintf(stderr, "send REQUEST\n");
-			print_dhcp_packet(&packet, 1);
+			print_dhcp_packet(&packet, 1, ntohl(dhc->skt.sin_addr.s_addr));
 			status_change(dhc, STAT_WAIT_ACK);
 			return 0;
 		}	
@@ -261,7 +261,7 @@ static int msg_ack (struct dhcpc * dhc){
 			return -1;
 		} else {
 		  //fprintf(stderr, "Received packet. message:DHCPACK\n");
-			print_dhcp_packet(dhc->buf, 0);
+			print_dhcp_packet(dhc->buf, 0, ntohl(dhc->skt.sin_addr.s_addr));
 			uint16_t time = dhc->buf->time;
 			uint32_t ip = dhc->buf->address;
 			uint32_t mask = dhc->buf->netmask; 
@@ -300,7 +300,7 @@ static int msg_extend_ack (struct dhcpc * dhc){
 			return -1;
 		} else {
 		  //fprintf(stderr, "Received packet. message:DHCPACK\n");
-		  print_dhcp_packet(dhc->buf, 0);
+		  print_dhcp_packet(dhc->buf, 0, ntohl(dhc->skt.sin_addr.s_addr));
 			uint16_t time = dhc->buf->time;
 			uint32_t ip = dhc->buf->address;
 			uint32_t mask = dhc->buf->netmask; 
@@ -364,7 +364,7 @@ static void signal_alrm_etc(struct dhcpc *dhc) {
 					exit(1);
 			}	
 		}
-		print_dhcp_packet(&packet, 1);
+		print_dhcp_packet(&packet, 1, ntohl(dhc->skt.sin_addr.s_addr));
 		exit(1);
 		return;
 	}
@@ -381,8 +381,8 @@ static void alarm_work_dhcpc(struct dhcpc * dhc) {
 		case STAT_WAIT_OFFER:
 			{
 			uint16_t time = dhc->buf->time;
-			uint32_t ip = htonl(dhc->cli_addr.s_addr);
-			uint32_t mask = htonl(dhc->netmask.s_addr); 
+			uint32_t ip = dhc->cli_addr.s_addr;
+			uint32_t mask = dhc->netmask.s_addr; 
 			init_dhcp_packet(&packet, DHCPDISCOVER, CODE_IN_REQUEST_EXTEND, 0,0,0);
 			int count;
 			if ((count = sendto(dhc->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dhc->skt), sizeof dhc->skt)) < 0) {
@@ -391,7 +391,7 @@ static void alarm_work_dhcpc(struct dhcpc * dhc) {
 			}
 			//			fprintf(stderr, "send REQUEST\n");
 			dhc->ttlcounter = PACKET_WAIT_TTL;
-			print_dhcp_packet(&packet, 1);
+			print_dhcp_packet(&packet, 1, ntohl(dhc->skt.sin_addr.s_addr));
 			status_change(dhc, STAT_WAIT_OFFER_2ND);
 			}
 		break;
@@ -402,8 +402,8 @@ static void alarm_work_dhcpc(struct dhcpc * dhc) {
 		case STAT_WAIT_ACK:
 			{
 			uint16_t time = dhc->buf->time;
-			uint32_t ip = htonl(dhc->cli_addr.s_addr);
-			uint32_t mask = htonl(dhc->netmask.s_addr); 
+			uint32_t ip = dhc->cli_addr.s_addr;
+			uint32_t mask = dhc->netmask.s_addr; 
 			init_dhcp_packet(&packet, DHCPREQUEST, CODE_IN_REQUEST_FIRST, time, ip, mask);
 			int count;
 			if ((count = sendto(dhc->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dhc->skt), sizeof dhc->skt)) < 0) {
@@ -412,7 +412,7 @@ static void alarm_work_dhcpc(struct dhcpc * dhc) {
 			}
 			dhc->ttlcounter = PACKET_WAIT_TTL;
 			//			fprintf(stderr, "send REQUEST\n");
-			print_dhcp_packet(&packet, 1);
+			print_dhcp_packet(&packet, 1, ntohl(dhc->skt.sin_addr.s_addr));
 			status_change(dhc, STAT_WAIT_ACK_2ND);
 			}
 		break;
@@ -433,7 +433,7 @@ static void alarm_work_dhcpc(struct dhcpc * dhc) {
 			}
 			dhc->ttlcounter = dhc->ipttl/2;
 			//			fprintf(stderr, "send REQUEST\n");
-			print_dhcp_packet(&packet, 1);
+			print_dhcp_packet(&packet, 1, ntohl(dhc->skt.sin_addr.s_addr));
 			status_change(dhc, STAT_WAIT_ACK_2ND);
 			}
 		break;

@@ -4,6 +4,8 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdint.h>
+#include "ip_list.h"
+
 #define STAT_WAIT_DISCOVER 0
 #define STAT_WAIT_REQUEST 1
 #define STAT_IN_USE 2
@@ -30,9 +32,9 @@ struct c_entry{
 extern int init_head_struct(struct c_entry*head,uint32_t id);
 extern struct c_entry* make_new_client(struct c_entry * head, uint32_t id, uint32_t ip, uint32_t mask, short stat, int ttl);
 extern int search_client(struct c_entry * head,struct c_entry ** client ,uint32_t id);
-extern int rm_client(struct c_entry * c);
+extern int rm_client(struct ip_list * il, struct c_entry * c);
 extern int extent_ttl(struct c_entry *c, uint16_t ttl);
 extern int print_client_list(struct c_entry * head);
 extern int client_status_change(struct c_entry *c, int to);
-extern int search_ttl_and_decrease_time(struct c_entry *head);
+extern int search_ttl_and_decrease_time(struct ip_list * hi, struct c_entry *head);
 #endif // CENTRY_H_

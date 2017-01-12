@@ -21,6 +21,7 @@ struct ip_list;
 struct dhcpd {
   int s;  //server socket data
   int ipttl;
+  //network order
   struct sockaddr_in myskt; //server ip
   struct dhcp_packet *buf; // late received packet
   struct sockaddr_in bufskt;  // late client socket

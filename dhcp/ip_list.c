@@ -3,6 +3,11 @@
 #include <sys/socket.h>
 #include <stdlib.h>
 #include <netinet/in.h>
+
+#include <arpa/inet.h>
+#include <stdint.h>
+#include <string.h>
+
 #include "ip_list.h"
 
 
@@ -37,7 +42,7 @@ int init_ip_list_from_arg(struct ip_list * head, char * filename) {
   }
   return 0;
 }
-int add_new_ip(struct ip_list * head, uint32_t ip, uint32_t mask) {
+extern int add_new_ip(struct ip_list * head, uint32_t ip, uint32_t mask) {
   //malloc and make ip_struct and add to list
   struct ip_list *p;
   p = head;
@@ -47,14 +52,42 @@ int add_new_ip(struct ip_list * head, uint32_t ip, uint32_t mask) {
   struct ip_list * newip = (struct ip_list *)malloc(sizeof(struct ip_list));
   init_ip_struct(newip, ip, mask);
   insert_iplist(p, newip);
+  return 0;
 }
+int add_new_ip_print(struct ip_list * head, uint32_t ip, uint32_t mask) {
+  //malloc and make ip_struct and add to list
+  struct ip_list *p;
+  p = head;
+  while(p->fp != head) {
+    p = p->fp;
+  }
+  struct ip_list * newip = (struct ip_list *)malloc(sizeof(struct ip_list));
+  init_ip_struct(newip, ip, mask);
+  insert_iplist(p, newip);
 
+  struct in_addr ipdest;
+  ipdest.s_addr = p->ip;
+  char * ipdeststring = inet_ntoa(ipdest);
+  fprintf(stderr, "Add IP to list. IP:%s ", ipdeststring);
+  struct in_addr maskdest;
+  maskdest.s_addr = p->mask;
+  char * maskstring = inet_ntoa(maskdest);
+  fprintf(stderr, "mask:%s\n", maskstring);
+}
 extern int  getrm_ip_from_list(struct ip_list * head, struct ip_list ** p) {
   *p = head->fp;
   if (*p == head) {
     fprintf (stderr, "No IP on list.\n");
     return -1;
   } else {
+    struct in_addr ipdest;
+   ipdest.s_addr = (*p)->ip;
+    char * ipdeststring = inet_ntoa(ipdest);
+    fprintf(stderr, "Remove IP from list. IP:%s", ipdeststring);
+    struct in_addr maskdest;
+    maskdest.s_addr = (*p)->mask;
+    char * maskstring = inet_ntoa(maskdest);
+    fprintf(stderr, "mask:%s\n", maskstring);
     head->fp = (*p)->fp;
     (*p)->fp->bp = head;
     (*p)->fp = NULL;
@@ -65,11 +98,17 @@ extern int  getrm_ip_from_list(struct ip_list * head, struct ip_list ** p) {
 
 extern void print_ip_list(struct ip_list * hi) {
   struct ip_list * p;
-  p = hi;
-  printf("ip:%d mask: %d\n", p->ip, p->mask);
-  p = p->fp;
+  p = hi->fp;
+  fprintf(stderr, "IP LIST\n");
   while(p != hi) {
-      printf("ip:%d mask: %d\n", p->ip, p->mask);
+  struct in_addr ipin;
+  ipin.s_addr = p->ip;
+  char * ipstring  = inet_ntoa(ipin);
+  fprintf(stderr,"ip: %s ", ipstring);
+  struct in_addr maskin;
+  maskin.s_addr = p->mask;
+  char * maskstring  = inet_ntoa(maskin);
+  fprintf(stderr, "mask: %s\n", maskstring);
       p = p->fp;
   }
   return;

@@ -14,6 +14,7 @@ extern int init_ip_list_from_arg(struct ip_list * head, char * filename);
 extern int add_new_ip(struct ip_list *head, uint32_t ip, uint32_t mask);
 extern int getrm_ip_from_list(struct ip_list * head, struct ip_list **p);
 extern void print_ip_list(struct ip_list * hi);
+extern int add_new_ip_print(struct ip_list * head, uint32_t ip, uint32_t mask);
 //extern int ip_list* rm_ip_from_list();
 
 #endif //IP_LIST_H_

@@ -30,7 +30,7 @@ static int msg_release (struct dhcpd * dd, struct c_entry *client);
 
 static void signal_alrm();
 static void signal_alrm_etc(struct dhcpd *dd);
-static int alarm_work_dhcpd(struct c_entry *c);
+static int alarm_work_dhcpd(struct dhcpd *dd, struct c_entry *c);
 
 static int getipttl_from_file(struct dhcpd *dhc, char *filename);
 ///
@@ -51,6 +51,7 @@ void init_dhcpd(struct dhcpd * dd,int argc, char * argv[]) {
   if((i = init_ip_list_from_arg(&(dd->ip_list_head), argv[1])) < 0) {
   	exit(1);
   }
+  print_ip_list(&(dd->ip_list_head));
   dd->buf = malloc (sizeof (struct dhcp_packet));
   socket_and_bind(dd); //open socket and bind
   //setting ip
@@ -168,7 +169,7 @@ static int recv_packet(struct dhcpd * dd) {
 			perror ("recvfrom error");
 			exit(1);
 		}
-		print_dhcp_packet(dd->buf, 0);
+		print_dhcp_packet(dd->buf, 0, htonl(dd->bufskt.sin_addr.s_addr));
 		return 0;
 	}
 }
@@ -221,7 +222,7 @@ static int msg_discover(struct dhcpd * dd, struct c_entry *client) {
 				socklen_t sklen = sizeof(dd->bufskt);
 				sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
 				//fprintf(stderr, "SEND MESSAGE :DHCPOFFER\n");
-				print_dhcp_packet(&packet, 1);
+				print_dhcp_packet(&packet, 1, client->id.s_addr);
 				client_status_change(client, STAT_WAIT_REQUEST);
 				return 0;
 			} else {
@@ -246,11 +247,11 @@ static int msg_request(struct dhcpd * dd, struct c_entry *client) {
 		socklen_t sklen = sizeof(dd->bufskt);
 		sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
 		//fprintf(stderr, "SEND MESSAGE\n");
-		print_dhcp_packet(&packet, 1);
+		print_dhcp_packet(&packet, 1, client->id.s_addr);
 		client->ttl = dd->buf->time;
 		client->ttlcounter = dd->buf->time;
 		if (code == 0) client_status_change(client, STAT_IN_USE);// can't use stat_wait_request_2
-		else rm_client(client);// remove no siyou
+		else rm_client(&(dd->ip_list_head), client);// remove no siyou
 	} else {
 		fprintf(stderr, "Message error: state is not true, should be DHCPOFFER\n");
 		return -1;
@@ -260,7 +261,7 @@ static int msg_release(struct dhcpd * dd, struct c_entry *client) {
 	struct dhcp_packet packet;
 	if (dd->buf->type == DHCPRELEASE) {
 	  //	  	  fprintf(stderr, "RECEIVE MESSAGE :DHCPRELEASE\n");
-		rm_client(client);
+		rm_client(&(dd->ip_list_head), client);
 	} else if (dd->buf->type == DHCPREQUEST) {
 		uint8_t code;
 		//send DHCPACK
@@ -275,11 +276,11 @@ static int msg_release(struct dhcpd * dd, struct c_entry *client) {
 		socklen_t sklen = sizeof(dd->bufskt);
 		sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
 		//fprintf(stderr, "SEND MESSAGE\n");
-		print_dhcp_packet(&packet, 1);
+		print_dhcp_packet(&packet, 1, client->id.s_addr);
 		client->ttl = dd->buf->time;
 		client->ttlcounter = dd->buf->time;
 		if (code == 0) client_status_change(client, STAT_IN_USE);// can't use stat_wait_request_2
-		else rm_client(client);
+		else rm_client(&(dd->ip_list_head), client);
 	}else{
 		fprintf(stderr, "Message error: state is not true, should be STAT_IP_ASSIGNMENT\n");
 		return -1;
@@ -306,7 +307,7 @@ static void signal_alrm_etc(struct dhcpd *dd) {
 			c->ttlcounter = c->ttlcounter - flag_alrm;
 			nc = c->fp;
 			if (c->ttlcounter < 0) {
-				alarm_work_dhcpd(c);
+				alarm_work_dhcpd(dd, c);
 			}
 			c = nc;
 		}
@@ -314,7 +315,8 @@ static void signal_alrm_etc(struct dhcpd *dd) {
 	flag_alrm = 0;
 	return;
 }
-static int alarm_work_dhcpd(struct c_entry *c) {
+static int alarm_work_dhcpd(struct dhcpd *dd, struct c_entry *c) {
+	fprintf(stderr, "\n");
 	switch(c->stat) {
 		case STAT_WAIT_REQUEST:
 			client_status_change(c, STAT_WAIT_REQUEST2);
@@ -325,11 +327,11 @@ static int alarm_work_dhcpd(struct c_entry *c) {
 		break;
 		case STAT_WAIT_REQUEST2:
 			fprintf(stderr, "DBG Timeout REQUEST2\n");
-			rm_client(c);
+			rm_client(&(dd->ip_list_head), c);
 		break;
 		case STAT_IN_USE:
 			fprintf(stderr, "Timeout in STAT_IN_USE remove client\n");
-			rm_client(c);
+			rm_client(&(dd->ip_list_head), c);
 		break;
 		default:
 			fprintf(stderr, "debug: TTL < 0 but state is not \n");

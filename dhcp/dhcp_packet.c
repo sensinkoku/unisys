@@ -7,6 +7,7 @@
 #include <sys/socket.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdint.h>
 void init_dhcp_packet(struct dhcp_packet * p,uint8_t type, uint8_t code, uint16_t time, uint32_t ip, uint32_t mask)
 {
 	p->type = type;
@@ -16,7 +17,8 @@ void init_dhcp_packet(struct dhcp_packet * p,uint8_t type, uint8_t code, uint16_
 	p->netmask = mask;
 	return;
 }
-void print_dhcp_packet(struct dhcp_packet *p, int i) {
+void print_dhcp_packet(struct dhcp_packet *p, int i, uint32_t destip) {
+  //network order, destip
   char stat[32];
   char msgd[32] = "DHCPDISCOVER\0";
   char msgo[32] = "DHCPOFFER\0";
@@ -40,9 +42,12 @@ void print_dhcp_packet(struct dhcp_packet *p, int i) {
     strncpy(stat, msgrl, 30);
     break;
   }
-  
-  if (i == 0) fprintf(stderr, "\nRECEIVED PACKET\n");
-  else if (i == 1) fprintf(stderr, "\nSEND PACKET\n");
+  destip = ntohl(destip);
+  struct in_addr ipdest;
+  ipdest.s_addr = destip;
+  char * ipdeststring = inet_ntoa(ipdest);
+  if (i == 0) fprintf(stderr, "\nRECEIVED PACKET from %s\n", ipdeststring);
+  else if (i == 1) fprintf(stderr, "\nSEND PACKET to %s\n", ipdeststring);
   fprintf(stderr, "//////////////////////\n");
   fprintf(stderr, "packet detail\n");
   fprintf(stderr, "TYPE : %s\n", stat);

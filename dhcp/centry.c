@@ -5,7 +5,9 @@
 #include <netinet/in.h>
 #include <stdint.h>
 #include <string.h>
+#include <arpa/inet.h>
 #include "centry.h"
+#include "ip_list.h"
 //declare static functions
 static void insert_centry_list(struct c_entry * head, struct c_entry * insert);
 
@@ -50,12 +52,21 @@ int search_client (struct c_entry *head, struct c_entry ** client,uint32_t id) {
   }
     return -1;
 }*/
-int rm_client(struct c_entry *c) {
+int rm_client(struct ip_list * ih, struct c_entry *c) {
+  uint32_t destip = ntohl(c->id.s_addr);
+  struct in_addr ipdest;
+  ipdest.s_addr = destip;
+  char * ipdeststring = inet_ntoa(ipdest);
+  fprintf(stderr, "Delete client. id-IP:%s\n", ipdeststring);
+  uint32_t ip;
+  uint32_t mask;
+  ip = htonl(c->cli_addr.s_addr);
+  mask = htonl(c->netmask.s_addr);
+  add_new_ip_print(ih, ip, mask);
   c->fp->bp = c->bp;
   c->bp->fp = c->fp;
   c->fp = NULL;
   c->bp = NULL;
-  fprintf(stderr, "Delete client. id:%d\n", c->id.s_addr);
   free(c);
   return 0;
 }
@@ -120,18 +131,22 @@ switch(to){
     default:
       break;
   }
-  
- fprintf(stderr ,"STATUS CHANGE  FROM:%s  TO:%s\n", fromc , toc);
+  uint32_t destip = ntohl(c->id.s_addr);
+  struct in_addr ipdest;
+  ipdest.s_addr = destip;
+  char * ipdeststring = inet_ntoa(ipdest);
+  fprintf(stderr, "IN CLIENT id-IP: %s\n", ipdeststring);
+  fprintf(stderr ,"STATUS CHANGE  FROM:%s  TO:%s\n", fromc , toc);
   c->stat = to;
   return 0;
 }
 
-int search_ttl_and_decrease_time(struct c_entry *head) {
+int search_ttl_and_decrease_time(struct ip_list * ih, struct c_entry *head) {
   struct c_entry *p;
   p = head->fp;
   while (p != head) {
     (p->ttlcounter)--;
-    if (p->ttlcounter <= 0) rm_client(p);
+    if (p->ttlcounter <= 0) rm_client(ih, p);
     p = p->fp;
   }
   return 0;
