@@ -1,15 +1,15 @@
 CC := gcc
 
 ALL := SERVER CLIENT
-SERVER := server.out
-CLIENT := client.out
+SERVER := mydhcpd
+CLIENT := mydhcpc
 
 .PHONY: all clean
 all: $(ALL)
 
 SERVER: dhcp_packet.c dhcpd.c main_dhcpd.c ip_list.c centry.c
-	$(CC) -g dhcp_packet.c dhcpd.c main_dhcpd.c ip_list.c centry.c -o server.out
+	$(CC)  dhcp_packet.c dhcpd.c main_dhcpd.c ip_list.c centry.c -o mydhcpd
 CLIENT: dhcpc.c dhcp_packet.c main_dhcpc.c
-	$(CC) -g dhcpc.c dhcp_packet.c main_dhcpc.c -o client.out
+	$(CC)  dhcpc.c dhcp_packet.c main_dhcpc.c -o mydhcpc
 clean:
 	rm $(OUTPUT)

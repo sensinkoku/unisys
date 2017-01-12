@@ -148,7 +148,7 @@ static int init_dhcpc_struct(struct dhcpc * dhc, uint32_t ip) {
 static uint32_t get_ip_from_arg(int argc, char * argv[]) {
 	struct in_addr ips;
 	if (argc != 2) {
-		fprintf(stderr, "Usage: ./dhcpd <fileneme>\n");
+		fprintf(stderr, "Usage: ./mydhcpc ipaddress\n");
     	exit(1);
     	return 0;
 	} else {
@@ -276,11 +276,11 @@ static int msg_ack (struct dhcpc * dhc){
 			struct in_addr ipin;
 			ipin.s_addr = ip;
 			char * ipstring = inet_ntoa(ipin);
-			fprintf(stderr, "\nIP set. IP:%s  ", ipstring);
+			fprintf(stderr, "\nIP set. IP:%s ", ipstring);
 			struct in_addr maskin;
 			maskin.s_addr = mask;
 			char * maskstring = inet_ntoa(maskin);
-			fprintf(stderr, "Mask:%s\n", maskstring);
+			fprintf(stderr, "Mask:%s TTL is %d sec.\n", maskstring, dhc->buf->time);
 			//print_dhcp_packet(&packet, 1);
 			status_change(dhc, STAT_IN_USE);
 			return 0;
@@ -319,7 +319,7 @@ static int msg_extend_ack (struct dhcpc * dhc){
 			struct in_addr maskin;
 			maskin.s_addr = mask;
 			char * maskstring = inet_ntoa(maskin);
-			fprintf(stderr, "Mask:%s\n", maskstring);
+			fprintf(stderr, "Mask:%s TTL is %d sec\n", maskstring, dhc->buf->time);
 			status_change(dhc, STAT_IN_USE);
 			return 0;
 		}

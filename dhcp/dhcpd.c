@@ -190,7 +190,7 @@ static int client_check(struct dhcpd * dd, struct c_entry **client) {
 
 static int mydhcpd_input_check(int argc, char * argv[]) {
   if (argc != 2) {
-    fprintf(stderr, "Usage: ./dhcpd <fileneme>\n");
+    fprintf(stderr, "Usage: ./mydhcpd <fileneme>\n");
     return -1;
   }
   return 0;
@@ -202,9 +202,9 @@ static int msg_discover(struct dhcpd * dd, struct c_entry *client) {
 				uint8_t code;
 				struct ip_list * ip;
 				int count;
-				if((count = getrm_ip_from_list(&(dd->ip_list_head), &ip)) < 0) {
+				if((count = getrm_ip_from_list(&(dd->ip_list_head), &ip, dd->ipttl)) < 0) {
 					fprintf(stderr, "msg_discover: can't assign because no ip\n");
-					code = 129;
+					code = 1;
 				} else{
 					uint32_t n_ip;
 					uint32_t n_mask;
@@ -222,8 +222,12 @@ static int msg_discover(struct dhcpd * dd, struct c_entry *client) {
 				socklen_t sklen = sizeof(dd->bufskt);
 				sendto(dd->s, &packet, sizeof(struct dhcp_packet), 0, (struct sockaddr *)&(dd->bufskt), sklen);
 				//fprintf(stderr, "SEND MESSAGE :DHCPOFFER\n");
-				print_dhcp_packet(&packet, 1, client->id.s_addr);
-				client_status_change(client, STAT_WAIT_REQUEST);
+				if (client == NULL) {
+				  print_dhcp_packet(&packet, 1, ntohl(dd->bufskt.sin_addr.s_addr));
+				}else {
+				  print_dhcp_packet(&packet, 1, client->id.s_addr);
+				}
+				if (client != NULL) client_status_change(client, STAT_WAIT_REQUEST);
 				return 0;
 			} else {
 				fprintf(stderr, "Message error: state is not true, should be DHCPDISCOVER\n");

@@ -66,15 +66,15 @@ int add_new_ip_print(struct ip_list * head, uint32_t ip, uint32_t mask) {
   insert_iplist(p, newip);
 
   struct in_addr ipdest;
-  ipdest.s_addr = p->ip;
+  ipdest.s_addr = newip->ip;
   char * ipdeststring = inet_ntoa(ipdest);
   fprintf(stderr, "Add IP to list. IP:%s ", ipdeststring);
   struct in_addr maskdest;
-  maskdest.s_addr = p->mask;
+  maskdest.s_addr = newip->mask;
   char * maskstring = inet_ntoa(maskdest);
   fprintf(stderr, "mask:%s\n", maskstring);
 }
-extern int  getrm_ip_from_list(struct ip_list * head, struct ip_list ** p) {
+extern int  getrm_ip_from_list(struct ip_list * head, struct ip_list ** p, int ipttl) {
   *p = head->fp;
   if (*p == head) {
     fprintf (stderr, "No IP on list.\n");
@@ -83,11 +83,11 @@ extern int  getrm_ip_from_list(struct ip_list * head, struct ip_list ** p) {
     struct in_addr ipdest;
    ipdest.s_addr = (*p)->ip;
     char * ipdeststring = inet_ntoa(ipdest);
-    fprintf(stderr, "Remove IP from list. IP:%s", ipdeststring);
+    fprintf(stderr, "Get IP from list. IP:%s ", ipdeststring);
     struct in_addr maskdest;
     maskdest.s_addr = (*p)->mask;
     char * maskstring = inet_ntoa(maskdest);
-    fprintf(stderr, "mask:%s\n", maskstring);
+    fprintf(stderr, "mask:%s TTL is %d sec.\n", maskstring, ipttl);
     head->fp = (*p)->fp;
     (*p)->fp->bp = head;
     (*p)->fp = NULL;

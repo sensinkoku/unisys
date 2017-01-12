@@ -60,8 +60,8 @@ int rm_client(struct ip_list * ih, struct c_entry *c) {
   fprintf(stderr, "Delete client. id-IP:%s\n", ipdeststring);
   uint32_t ip;
   uint32_t mask;
-  ip = htonl(c->cli_addr.s_addr);
-  mask = htonl(c->netmask.s_addr);
+  ip = ntohl(c->cli_addr.s_addr);
+  mask = ntohl(c->netmask.s_addr);
   add_new_ip_print(ih, ip, mask);
   c->fp->bp = c->bp;
   c->bp->fp = c->fp;
