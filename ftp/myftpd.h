@@ -61,6 +61,7 @@ struct ftpd {
 	int status;
 	int pathlength;
 	char * path;
+	FILE * fp;
 	// below network order 
 	struct sockaddr_in myskt;
 	struct sockaddr_in cliskt;

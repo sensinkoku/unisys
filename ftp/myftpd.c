@@ -61,6 +61,7 @@ struct ftpd {
 	int status;
 	int pathlength;
 	char * path;
+	FILE * fp;
 	// below network order 
 	struct sockaddr_in myskt;
 	struct sockaddr_in cliskt;
@@ -99,6 +100,7 @@ static int send_ftpmsg(struct ftpd * ftpd, uint8_t type, uint8_t code, char *dat
 static int send_ftpdata(struct ftpd * ftpd, char *data, uint16_t datalength);
 
 static int getfilesize(FILE * fp);
+static int server_status_change(struct ftpd * ftpd, int status);
 
 
 static int init_ftpd(struct ftpd * ftpd, int argc, char *argv[]) {
@@ -236,7 +238,7 @@ static int work_in_stat_connect(struct ftpd * ftpd) {
 static int work_in_recvmsg(struct ftpd * ftpd) {
 	switch (ftpd->fdhbuf->type) {
 		case FTPMSG_DATA: {
-
+			msg_data(ftpd);
 		}
 		break;
 		default:{
@@ -258,7 +260,7 @@ static int msg_pwd(struct ftpd * ftpd) {
 		fprintf (stderr, "NOT PROPER MESSAGE PWD IN THIS STATUS.\n");
 		exit(1);
 	}
-	send_ftpdmsg(ftpd, FTPMSG_OK, CODE_OK, ftpd->path, (uint16_t)pathlength);
+	send_ftpmsg(ftpd, FTPMSG_OK, CODE_OK, ftpd->path, (uint16_t)ftpd->pathlength);
 	return 0;
 }
 static int msg_cwd(struct ftpd * ftpd) {
@@ -272,16 +274,16 @@ static int msg_cwd(struct ftpd * ftpd) {
 	strncpy(path, ftpd->fdbuf->data, pathlen);
 	if (chdir(path) < 0) {
 		fprintf(stderr, "Change directory error, Illegal path.\n");
-		send_ftph(ftpd->s, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR,0);
+		send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR,0);
 
 	} else { //set path
 		free(ftpd->path);
 		ftpd->pathlength = pathlen;
 		ftpd->path = (char *)malloc ((pathlen+1) * sizeof(char));
-		memset(ftpd->path, '\0', pathlength+1);
+		memset(ftpd->path, '\0', ftpd->pathlength+1);
 		strncpy(ftpd->path,path,pathlen);
 		fprintf(stderr,"Chdir to %s", ftpd->path);
-		send_ftph(ftpd->s, FTPMSG_OK, CODE_OK, 0);
+		send_ftph(ftpd, FTPMSG_OK, CODE_OK, 0);
 	}
 	return 0;
 }
@@ -291,18 +293,20 @@ static int msg_list(struct ftpd * ftpd) {
 	if (pathlen == 0) {
 		if ((fp = popen("ls -l", "r")) == NULL) {
 			fprintf(stderr, "ls -l error\n");
-			sendftpmsg(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
+			send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
 			return -1;
 		}
 	} else {
 		char path [pathlen+1];
 		memset(path, '\0', pathlen+1);
 		strncpy(path, ftpd->fdbuf->data, pathlen);
-		char ls[32+pathlen] = "ls -l \0";
+		char ls[32+pathlen];
+		char lsbuf[8] = "ls -l\0";
+		strncpy (ls, lsbuf, sizeof lsbuf);
 		strncat (ls, path, pathlen+1);
 		if ((fp = popen(ls , "r")) == NULL) {
 			fprintf(stderr, "ls -l error\n");
-			sendftpmsg(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
+			send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
 			return -1;
 		}
 	}
@@ -328,31 +332,27 @@ static int msg_retr(struct ftpd * ftpd) {
 	send_ftph(ftpd, FTPMSG_OK, CODE_OK_DATA_STOC, 0);
 	int filesize = getfilesize(fp);
 	char data[filesize];
-	fread(data ,sizeof char,filesize,fp);
+	fread(data, sizeof (char), filesize, fp);
 	send_ftpdata(ftpd, data, filesize);
-	close(fp);
+	fclose(fp);
 	return 0;
 }
+
 static int msg_stor(struct ftpd * ftpd) {
 	int pathlen = ftpd->fdbuf->length;
 	char path [pathlen];
 	//memset(path, '\0', pathlen+1);
 	strncpy(path, ftpd->fdbuf->data, pathlen);
-	FILE *fp;
-	if ((fp = fopen(path, "bw")) == NULL) {
-		fprintf(stderr, "no such file in server\n");
+	if ((ftpd->fp = fopen(path, "bw")) == NULL) {
+		fprintf(stderr, "File access prohibited\n");
 		send_ftph(ftpd,FTPMSG_FILE_ERR,CODE_FILEERR_NOACCESS,0);
 		return -1;
 	}
-	send_ftph(ftpd, FTPMSG_OK, CODE_OK_DATA_STOC, 0);
-	int filesize = getfilesize(fp);
-	char data[filesize];
-	fread(data ,sizeof char,filesize,fp);
-	send_ftpdata(ftpd, data, filesize);
-	close(fp);
+	server_status_change(ftpd, STAT_RECVMSG);
+	send_ftph(ftpd, FTPMSG_OK, CODE_OK_DATA_CTOS, 0);
 	return 0;
-
 }
+
 static int msg_ok(struct ftpd * ftpd) {
 
 }
@@ -361,7 +361,14 @@ static int msg_cmderr(struct ftpd * ftpd) {
 }
 static int msg_fileerr(struct ftpd * ftpd);
 static int msg_unkwnerr(struct ftpd * ftpd);
-static int msg_data(struct ftpd * ftpd);
+static int msg_data(struct ftpd * ftpd) {
+	fwrite(ftpd->fdbuf->data, sizeof (char), ftpd->fdbuf->length, ftpd->fp);
+	if (ftpd->fdbuf->code == CODE_DATA_LAST) {
+		server_status_change(ftpd, STAT_TCP_CONNECT);
+		fclose(ftpd->fp);
+	}
+	return 0;
+}
 
 static int send_ftph(struct ftpd * ftpd, uint8_t type, uint8_t code, uint16_t datalength) {
 	struct ftphead ftph;
@@ -379,8 +386,8 @@ static int send_ftpmsg(struct ftpd * ftpd, uint8_t type, uint8_t code, char *dat
 	ftppacket.type = type;
 	ftppacket.code = code;
 	ftppacket.length = datalength;
-	ftppacket.data = data;
-	if (send(ftpd->s, &ftppacket, sizeof(struct ftppacket), 0) < 0) {
+	strncpy(ftppacket.data, data, datalength);
+	if (send(ftpd->s, &ftppacket, sizeof(struct ftpdata), 0) < 0) {
 		fprintf(stderr, "send error\n");
 		exit(1);
 	}
@@ -404,13 +411,13 @@ static int send_ftpdata(struct ftpd * ftpd, char *data, uint16_t datalength) {
 			ftppacket.type = FTPMSG_DATA;
 			ftppacket.code = CODE_DATA_LAST;
 			ftppacket.length = datasize - (DATASIZE * sendtime);
-			ftppacket.data = data + (DATASIZE * sendtime);
+			strncpy(ftppacket.data, data + (DATASIZE * sendtime), datalength);
 		}
 		else {
 			ftppacket.type = FTPMSG_DATA;
 			ftppacket.code = CODE_DATA_NOTLAST;
 			ftppacket.length = DATASIZE;
-			ftppacket.data = data + (DATASIZE * sendtime);
+			strncpy(ftppacket.data, data + (DATASIZE * sendtime), datalength);
 		}
 		if (send(ftpd->s, &ftppacket, sizeof(struct ftpdata), 0) < 0) {
 			fprintf(stderr, "send error\n");
@@ -424,14 +431,19 @@ static int getfilesize(FILE * fp) {
 	int filesize = 0;
 	if (fp == NULL) return -1;
 	fseek(fp, 0, SEEK_END);
-	size = ftell(fp);
+	filesize = ftell(fp);
 	fseek(fp, 0, SEEK_SET);
 	return filesize;
+}
+static int server_status_change(struct ftpd * ftpd, int status) {
+	ftpd->status = status;
+	return 0;
 }
 int main(int argc, char * argv[]) {
 	struct ftpd ftpd;
 	init_ftpd(&ftpd, argc, argv);
 	fprintf(stderr, "Path is %s\n", ftpd.path);
+	loop_ftpd(&ftpd);
 	return 0;
 }
 
