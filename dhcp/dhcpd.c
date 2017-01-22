@@ -87,7 +87,7 @@ static int socket_and_bind(struct dhcpd * dd) {
 	struct in_addr test;
 	test.s_addr = ntohl(dd->myskt.sin_addr.s_addr);
  //	char * stringip = inet_ntoa(test);
-	fprintf (stderr, "DHCP server  ip is: %s\n", inet_ntoa(test));
+	//fprintf (stderr, "DHCP server  ip is: %s\n", inet_ntoa(test));
 	//test
 	int count;
 	if ((count = bind(dd->s, (struct sockaddr *)&(dd->myskt), sizeof dd->myskt)) < 0) {
