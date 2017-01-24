@@ -101,7 +101,8 @@ static int send_ftpdata(struct ftpd * ftpd, char *data, uint16_t datalength);
 
 static int getfilesize(FILE * fp);
 static int server_status_change(struct ftpd * ftpd, int status);
-
+static void print_packet(struct ftphead * packet);
+static void print_received_packet(struct ftpd * ftpd);
 
 static int init_ftpd(struct ftpd * ftpd, int argc, char *argv[]) {
 	loadargs(ftpd, argc, argv);
@@ -114,9 +115,10 @@ static int loop_ftpd(struct ftpd * ftpd) {
 	for (;;) {
 		make_connection(ftpd);
 		int chpid; // chile process id;
-		if ((chpid = fork()) == 0) {
+		//if ((chpid = fork()) == 0) {
+			fprintf(stderr, "TCP connection success. Forked process.\n");
 			ftp_work(ftpd);
-		}
+		//}
 	}
 	return 0;
 }
@@ -179,7 +181,7 @@ static int tcpstart(struct ftpd * ftpd) {
 static int make_connection(struct ftpd * ftpd) {
 		socklen_t sktlen;
 		sktlen = sizeof ftpd->cliskt;
-		if ((ftpd->clis = accept(ftpd->s, (struct sockaddr *)&(ftpd->cliskt), &sktlen) < 0) < 0) {
+		if ((ftpd->clis = accept(ftpd->s, (struct sockaddr *)&(ftpd->cliskt), &sktlen)) < 0) {
 			perror("accept error");
 			exit(1);
 		}
@@ -188,16 +190,23 @@ static int make_connection(struct ftpd * ftpd) {
 }
 
 static int ftp_work(struct ftpd * ftpd) {
+	for(;;){
 		int count;
-		if (count = (recv(ftpd->clis, ftpd->fdbuf, sizeof (struct ftpdata), 0)) < 0) {
+		if ((count = (recv(ftpd->clis, ftpd->fdbuf, sizeof (struct ftpdata), 0))) < 0) {
 			perror("recvfrom error");
 			exit(1);
+		} else if (count == 0) {
+			fprintf(stderr, "TCP Connection finished. Program exit.\n");
+			exit(1);
 		}
+
+		print_received_packet(ftpd);
 		if (ftpd->status == STAT_TCP_CONNECT) {
 			work_in_stat_connect(ftpd);
 		} else if (ftpd->status == STAT_RECVMSG) {
 			work_in_recvmsg(ftpd);
 		}
+	}
 	return 0;
 }
 
@@ -236,7 +245,7 @@ static int work_in_stat_connect(struct ftpd * ftpd) {
 	return 0;
 }
 static int work_in_recvmsg(struct ftpd * ftpd) {
-	switch (ftpd->fdhbuf->type) {
+	switch (ftpd->fdbuf->type) {
 		case FTPMSG_DATA: {
 			msg_data(ftpd);
 		}
@@ -311,11 +320,55 @@ static int msg_list(struct ftpd * ftpd) {
 		}
 	}
 	send_ftph(ftpd, FTPMSG_OK, CODE_OK_DATA_STOC, 0);
-	int filesize = getfilesize(fp);
+	char buff[2048];
+	int filesize = 0;
+	while (fgets(buff, sizeof(buff), fp)) {
+		fprintf(stderr, "fgets:%s", buff);
+		filesize += strlen(buff);
+	}
+
 	char data[filesize];
+	memset (data, 0, filesize);
+	pclose(fp);
+	if (pathlen == 0) {
+		if ((fp = popen("ls -l", "r")) == NULL) {
+			fprintf(stderr, "ls -l error\n");
+			send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
+			return -1;
+		}
+	} else {
+		char path [pathlen+1];
+		memset(path, '\0', pathlen+1);
+		strncpy(path, ftpd->fdbuf->data, pathlen);
+		char ls[32+pathlen];
+		char lsbuf[8] = "ls -l\0";
+		strncpy (ls, lsbuf, sizeof lsbuf);
+		strncat (ls, path, pathlen+1);
+		if ((fp = popen(ls , "r")) == NULL) {
+			fprintf(stderr, "ls -l error\n");
+			send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
+			return -1;
+		}
+	}
+	while (fgets(buff, sizeof(buff), fp)) {
+		fprintf(stderr, "fgets:%s", buff);
+		int size = strlen(buff);
+		strncat(data, buff, size);
+	}
+	fprintf(stderr, "%d\n", filesize);
+	fprintf(stderr, "%d\n", strlen(data));
+	//int filesize = getfilesize(fp);
+	//fprintf(stderr, "filesize :%d\n", filesize);
+
+/*	char data[filesize];
+fprintf(stderr, "filesize :%d\n", filesize);
+fprintf(stderr, "data:%s", data);
 	fread(data, sizeof(char), filesize, fp);
+fprintf(stderr, "filesize :%d\n", filesize);
+fprintf(stderr, "data:%s", data);
+	send_ftpdata(ftpd, data, filesize);*/
 	send_ftpdata(ftpd, data, filesize);
-	fclose(fp);
+	pclose(fp);
 	return 0;
 }
 static int msg_retr(struct ftpd * ftpd) {
@@ -375,10 +428,11 @@ static int send_ftph(struct ftpd * ftpd, uint8_t type, uint8_t code, uint16_t da
 	ftph.type = type;
 	ftph.code = code;
 	ftph.length = datalength;
-	if (send(ftpd->s, &ftph, sizeof(struct ftphead), 0) < 0) {
+	if (send(ftpd->clis, &ftph, sizeof(struct ftphead), 0) < 0) {
 		fprintf(stderr, "send error\n");
 		exit(1);
 	}
+	print_packet(&ftph);
 	return 0;
 }
 static int send_ftpmsg(struct ftpd * ftpd, uint8_t type, uint8_t code, char *data, uint16_t datalength) {
@@ -387,22 +441,24 @@ static int send_ftpmsg(struct ftpd * ftpd, uint8_t type, uint8_t code, char *dat
 	ftppacket.code = code;
 	ftppacket.length = datalength;
 	strncpy(ftppacket.data, data, datalength);
-	if (send(ftpd->s, &ftppacket, sizeof(struct ftpdata), 0) < 0) {
+	if (send(ftpd->clis, &ftppacket, sizeof(struct ftpdata), 0) < 0) {
 		fprintf(stderr, "send error\n");
 		exit(1);
 	}
+	print_packet((struct ftphead *)&ftppacket);
 	return 0;
 }
 static int send_ftpdata(struct ftpd * ftpd, char *data, uint16_t datalength) {
 	struct ftpdata ftppacket;
-	int datasize = sizeof (data);
+	int datasize = strlen(data);
 	if (datalength != datasize) {
 		fprintf(stderr, "In send data. datalen and data size are not equal.\n");
-		exit(1);
+		//exit(1);
 	}
 	int sendnum = 0;
-	while (datasize <= 0) { 
-		datasize -= DATASIZE;
+	int testdatasize = datasize;
+	while (testdatasize > 0) { 
+		testdatasize -= DATASIZE;
 		sendnum++;
 	}
 	int sendtime;
@@ -419,11 +475,12 @@ static int send_ftpdata(struct ftpd * ftpd, char *data, uint16_t datalength) {
 			ftppacket.length = DATASIZE;
 			strncpy(ftppacket.data, data + (DATASIZE * sendtime), datalength);
 		}
-		if (send(ftpd->s, &ftppacket, sizeof(struct ftpdata), 0) < 0) {
+		if (send(ftpd->clis, &ftppacket, sizeof(struct ftpdata), 0) < 0) {
 			fprintf(stderr, "send error\n");
 			exit(1);
 		}
 		sendnum--;
+		print_packet((struct ftphead *)&ftppacket);
 	}
 	return 0;
 }
@@ -432,12 +489,32 @@ static int getfilesize(FILE * fp) {
 	if (fp == NULL) return -1;
 	fseek(fp, 0, SEEK_END);
 	filesize = ftell(fp);
+//	fgetpos(fp, &filesize);
 	fseek(fp, 0, SEEK_SET);
+	fprintf(stderr, "filesize is %d\n", filesize);
 	return filesize;
 }
 static int server_status_change(struct ftpd * ftpd, int status) {
 	ftpd->status = status;
 	return 0;
+}
+static void print_packet(struct ftphead * packet) {
+	fprintf(stderr, "\n\nSend packet.\n");
+	fprintf(stderr, "======================\n");
+	fprintf(stderr, "Type: %d\n", packet->type);
+	fprintf(stderr, "Code: %d\n", packet->code);
+	fprintf(stderr, "Length: %d\n", packet->length);
+	fprintf(stderr, "======================\n");
+	return;
+}
+static void print_received_packet(struct ftpd * ftpd) {
+	fprintf(stderr, "\n\nReceived packet.\n");
+	fprintf(stderr, "======================\n");
+	fprintf(stderr, "Type: %d\n", ftpd->fdbuf->type);
+	fprintf(stderr, "Code: %d\n", ftpd->fdbuf->code);
+	fprintf(stderr, "Length: %d\n", ftpd->fdbuf->length);
+	fprintf(stderr, "======================\n");
+	return;
 }
 int main(int argc, char * argv[]) {
 	struct ftpd ftpd;
