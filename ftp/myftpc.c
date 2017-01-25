@@ -401,6 +401,7 @@ static int work_in_cwd(struct ftpd * ftpd){
 		break;
 		default:{
 			fprintf(stderr, "Not proper Message in STAT_WAIT_CWD\n");
+			client_status_change(ftpd,STAT_WAIT_COMMAND);
 			return -1;
 		}
 		break;
@@ -829,7 +830,7 @@ static void lpwd_proc(struct ftpd * ftpd, int argc, char *argv[]) {
 	memset(pathname, '\0', PATHLENGTH);
 	getcwd(pathname, PATHLENGTH);
 	fprintf(stdout, "Client curent directory: %s\n",pathname);
-	send_ftph(ftpd, FTPMSG_PWD, 0, 0);
+//	send_ftph(ftpd, FTPMSG_PWD, 0, 0);
 	return;
 }
 static void lcd_proc(struct ftpd * ftpd, int argc, char *argv[]) {
@@ -848,13 +849,14 @@ static void ldir_proc(struct ftpd * ftpd, int argc, char *argv[]) {
 		fprintf(stderr, "Usage: ldir or ldir <server-dir>\n");
 		return;
 	}
+	int pid;
 	if (argc == 1) {
 		char * command = "ls";
 		char * arg[3];
 		arg[0] = " ";
 		arg[1] = "-l";
 		arg[2] = NULL;
-		execvp(command, arg);
+		if ((pid = fork()) == 0) execvp(command, arg);
 	} else {
 		char * command = "ls";
 		char * arg[4];
@@ -862,8 +864,9 @@ static void ldir_proc(struct ftpd * ftpd, int argc, char *argv[]) {
 		arg[1] = "-l";
 		arg[2] = argv[1];
 		arg[3] = NULL;
-		execvp(command, arg);
+		if ((pid = fork()) == 0) execvp(command, arg);
 	}
+	wait(&pid);
 	return;
 }
 static void get_proc(struct ftpd * ftpd, int argc, char *argv[]) {
@@ -872,7 +875,7 @@ static void get_proc(struct ftpd * ftpd, int argc, char *argv[]) {
 		return;
 	}
 	if (argc == 2) {
-		if((ftpd->fp = fopen(argv[1], "bw")) == NULL) {
+		if((ftpd->fp = fopen(argv[1], "w")) == NULL) {
 			fprintf(stderr, "File access prohibited\n");
 			return;
 		}

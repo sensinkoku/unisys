@@ -279,18 +279,34 @@ static int msg_cwd(struct ftpd * ftpd) {
 	}
 	int pathlen = ftpd->fdbuf->length;
 	char path [pathlen];
+	/*char *cdcom[3];
+	cdcom[0] = "cd";
+	cdcom[1] = ftpd->fdbuf->length;
+	cdcom[2] = NULL;*/
+	char * cd = (char *) malloc(5+pathlen);
+	strncpy(cd, "cd ", 3);
 	//memset(path, '\0', pathlen+1);
+	char pathname[PATHLENGTH];
 	strncpy(path, ftpd->fdbuf->data, pathlen);
-	if (chdir(path) < 0) {
+	strncat(cd, path, pathlen);
+	getcwd(pathname, PATHLENGTH);
+	strncat(pathname, "/", pathlen);
+	strncat(pathname, path, pathlen);
+	fprintf(stderr, "cdpath:%s\n", pathname);
+	if (chdir(pathname) < 0) {
 		fprintf(stderr, "Change directory error, Illegal path.\n");
 		send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR,0);
 
 	} else { //set path
 		free(ftpd->path);
-		ftpd->pathlength = pathlen;
-		ftpd->path = (char *)malloc ((pathlen+1) * sizeof(char));
+		
+		getcwd(pathname, PATHLENGTH);
+		int pathlength = strlen(pathname);
+
+		ftpd->pathlength = pathlength;
+		ftpd->path = (char *)malloc ((pathlength+1) * sizeof(char));
 		memset(ftpd->path, '\0', ftpd->pathlength+1);
-		strncpy(ftpd->path,path,pathlen);
+		strncpy(ftpd->path,pathname,pathlength);
 		fprintf(stderr,"Chdir to %s", ftpd->path);
 		send_ftph(ftpd, FTPMSG_OK, CODE_OK, 0);
 	}
@@ -377,14 +393,14 @@ static int msg_retr(struct ftpd * ftpd) {
 	//memset(path, '\0', pathlen+1);
 	strncpy(path, ftpd->fdbuf->data, pathlen);
 	FILE *fp;
-	if ((fp = fopen(path, "br")) == NULL) {
+	if ((fp = fopen(path, "r")) == NULL) {
 		fprintf(stderr, "no such file in server\n");
 		send_ftph(ftpd,FTPMSG_FILE_ERR,CODE_FILEERR_NOACCESS,0);
 		return -1;
 	}
 	send_ftph(ftpd, FTPMSG_OK, CODE_OK_DATA_STOC, 0);
 	int filesize = getfilesize(fp);
-	char data[filesize];
+	char *data = (char *) malloc(filesize * sizeof(char));
 	fread(data, sizeof (char), filesize, fp);
 	send_ftpdata(ftpd, data, filesize);
 	fclose(fp);
@@ -463,20 +479,21 @@ static int send_ftpdata(struct ftpd * ftpd, char *data, uint16_t datalength) {
 	}
 	int sendtime;
 	for (sendtime = 0;sendnum >= 1;sendtime++) {
+		memset(ftppacket.data, '\0',DATASIZE);
 		if (sendnum == 1) {	//last data packet
 			ftppacket.type = FTPMSG_DATA;
 			ftppacket.code = CODE_DATA_LAST;
 			ftppacket.length = datasize - (DATASIZE * sendtime);
-			strncpy(ftppacket.data, data + (DATASIZE * sendtime), datalength);
+			strncpy(ftppacket.data, data + (DATASIZE * sendtime), datalength - (DATASIZE * sendtime));
 		}
 		else {
 			ftppacket.type = FTPMSG_DATA;
 			ftppacket.code = CODE_DATA_NOTLAST;
 			ftppacket.length = DATASIZE;
-			strncpy(ftppacket.data, data + (DATASIZE * sendtime), datalength);
+			strncpy(ftppacket.data, data + (DATASIZE * sendtime), DATASIZE);
+	//		strncpy(ftppacket.data, data + (DATASIZE * sendtime), datalength);
 		}
 		if (send(ftpd->clis, &ftppacket, sizeof(struct ftpdata), 0) < 0) {
-			fprintf(stderr, "send error\n");
 			exit(1);
 		}
 		sendnum--;
