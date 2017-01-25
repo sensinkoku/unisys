@@ -38,8 +38,8 @@
 #define CODE_FILEERR_NODIR 0x00
 #define CODE_FILEERR_NOACCESS 0x01
 #define CODE_UNKWNERR 0x05
-#define CODE_DATA_NOTLAST 0x00
-#define CODE_DATA_LAST 0x01
+#define CODE_DATA_NOTLAST 0x01
+#define CODE_DATA_LAST 0x00
 
 
 
@@ -326,9 +326,11 @@ static int msg_list(struct ftpd * ftpd) {
 		memset(path, '\0', pathlen+1);
 		strncpy(path, ftpd->fdbuf->data, pathlen);
 		char ls[32+pathlen];
-		char lsbuf[8] = "ls -l\0";
+		memset(ls, '\0', pathlen+32);
+		char lsbuf[8] = "ls -l ";
 		strncpy (ls, lsbuf, sizeof lsbuf);
 		strncat (ls, path, pathlen+1);
+		fprintf(stderr, "debug popen path%s", ls);
 		if ((fp = popen(ls , "r")) == NULL) {
 			fprintf(stderr, "ls -l error\n");
 			send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
@@ -357,9 +359,11 @@ static int msg_list(struct ftpd * ftpd) {
 		memset(path, '\0', pathlen+1);
 		strncpy(path, ftpd->fdbuf->data, pathlen);
 		char ls[32+pathlen];
-		char lsbuf[8] = "ls -l\0";
+		memset(ls, '\0', pathlen+32);
+		char lsbuf[8] = "ls -l ";
 		strncpy (ls, lsbuf, sizeof lsbuf);
 		strncat (ls, path, pathlen+1);
+		fprintf(stderr, "debug popen path%s", ls);
 		if ((fp = popen(ls , "r")) == NULL) {
 			fprintf(stderr, "ls -l error\n");
 			send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
@@ -393,7 +397,7 @@ static int msg_retr(struct ftpd * ftpd) {
 	//memset(path, '\0', pathlen+1);
 	strncpy(path, ftpd->fdbuf->data, pathlen);
 	FILE *fp;
-	if ((fp = fopen(path, "r")) == NULL) {
+	if ((fp = fopen(path, "rb")) == NULL) {
 		fprintf(stderr, "no such file in server\n");
 		send_ftph(ftpd,FTPMSG_FILE_ERR,CODE_FILEERR_NOACCESS,0);
 		return -1;
@@ -409,10 +413,12 @@ static int msg_retr(struct ftpd * ftpd) {
 
 static int msg_stor(struct ftpd * ftpd) {
 	int pathlen = ftpd->fdbuf->length;
-	char path [pathlen];
+	char path [pathlen+1];
+	path[pathlen] = '\0';
 	//memset(path, '\0', pathlen+1);
 	strncpy(path, ftpd->fdbuf->data, pathlen);
-	if ((ftpd->fp = fopen(path, "bw")) == NULL) {
+	fprintf(stderr, "write file path:%s\n", path);
+	if ((ftpd->fp = fopen(path, "wb")) == NULL) {
 		fprintf(stderr, "File access prohibited\n");
 		send_ftph(ftpd,FTPMSG_FILE_ERR,CODE_FILEERR_NOACCESS,0);
 		return -1;
@@ -470,6 +476,7 @@ static int send_ftpdata(struct ftpd * ftpd, char *data, uint16_t datalength) {
 	if (datalength != datasize) {
 		fprintf(stderr, "In send data. datalen and data size are not equal.\n");
 		//exit(1);
+		datasize = datalength;
 	}
 	int sendnum = 0;
 	int testdatasize = datasize;
@@ -516,18 +523,120 @@ static int server_status_change(struct ftpd * ftpd, int status) {
 	return 0;
 }
 static void print_packet(struct ftphead * packet) {
+		char type[16];
+	char code[16];
+	
+	char typequit[16] = "QUIT\n";
+	char typepwd[16] = "PWD\n";
+	char typecwd[16] = "CWD\n";
+	char typelist[16] = "LIST\n";
+	char typeretr[16] = "RETR\n";
+	char typestor[16] = "STOR\n";
+	char typeok[16] = "OK\n";
+	char typecmd_err[16] = "CMD-ERR\n";
+	char typesfile_err[16] = "FILE-ERR\n";
+	char typeunkwn_err[16] = "UNKWN-ERR\n";
+	char typedata[16] = "DATA\n";
+	switch (packet->type) {
+		case FTPMSG_QUIT:
+			strncpy(type, typequit,14);
+		break;
+		case FTPMSG_PWD:
+			strncpy(type, typepwd,14);
+		break;
+		case FTPMSG_CWD:
+			strncpy(type, typecwd,14);
+		break;
+		case FTPMSG_LIST:
+			strncpy(type, typelist,14);
+		break;
+		case FTPMSG_RETR:
+			strncpy(type, typeretr,14);
+		break;
+		case FTPMSG_STOR:
+			strncpy(type, typestor,14);
+		break;
+		case FTPMSG_OK:
+			strncpy(type, typeok,14);
+		break;
+		case FTPMSG_CMD_ERR:
+			strncpy(type, typecmd_err,14);
+		break;
+		case FTPMSG_FILE_ERR:
+			strncpy(type, typesfile_err,14);
+		break;
+		case FTPMSG_UNKWN_ERR:
+			strncpy(type, typeunkwn_err,14);
+		break;
+		case FTPMSG_DATA:
+			strncpy(type, typedata,14);
+		break;
+		default:
+		break;
+	}
 	fprintf(stderr, "\n\nSend packet.\n");
 	fprintf(stderr, "======================\n");
-	fprintf(stderr, "Type: %d\n", packet->type);
+	fprintf(stderr, "Type: %d %s", packet->type, type);
 	fprintf(stderr, "Code: %d\n", packet->code);
 	fprintf(stderr, "Length: %d\n", packet->length);
 	fprintf(stderr, "======================\n");
 	return;
 }
 static void print_received_packet(struct ftpd * ftpd) {
+	char type[16];
+	char code[16];
+	
+	char typequit[16] = "QUIT\n";
+	char typepwd[16] = "PWD\n";
+	char typecwd[16] = "CWD\n";
+	char typelist[16] = "LIST\n";
+	char typeretr[16] = "RETR\n";
+	char typestor[16] = "STOR\n";
+	char typeok[16] = "OK\n";
+	char typecmd_err[16] = "CMD-ERR\n";
+	char typesfile_err[16] = "FILE-ERR\n";
+	char typeunkwn_err[16] = "UNKWN-ERR\n";
+	char typedata[16] = "DATA\n";
+	switch (ftpd->fdbuf->type) {
+		case FTPMSG_QUIT:
+			strncpy(type, typequit,14);
+		break;
+		case FTPMSG_PWD:
+			strncpy(type, typepwd,14);
+		break;
+		case FTPMSG_CWD:
+			strncpy(type, typecwd,14);
+		break;
+		case FTPMSG_LIST:
+			strncpy(type, typelist,14);
+		break;
+		case FTPMSG_RETR:
+			strncpy(type, typeretr,14);
+		break;
+		case FTPMSG_STOR:
+			strncpy(type, typestor,14);
+		break;
+		case FTPMSG_OK:
+			strncpy(type, typeok,14);
+		break;
+		case FTPMSG_CMD_ERR:
+			strncpy(type, typecmd_err,14);
+		break;
+		case FTPMSG_FILE_ERR:
+			strncpy(type, typesfile_err,14);
+		break;
+		case FTPMSG_UNKWN_ERR:
+			strncpy(type, typeunkwn_err,14);
+		break;
+		case FTPMSG_DATA:
+			strncpy(type, typedata,14);
+		break;
+		default:
+		break;
+	}
 	fprintf(stderr, "\n\nReceived packet.\n");
 	fprintf(stderr, "======================\n");
-	fprintf(stderr, "Type: %d\n", ftpd->fdbuf->type);
+	fprintf(stderr, "Type: %d %s", ftpd->fdbuf->type, type);
 	fprintf(stderr, "Code: %d\n", ftpd->fdbuf->code);
 	fprintf(stderr, "Length: %d\n", ftpd->fdbuf->length);
 	fprintf(stderr, "======================\n");

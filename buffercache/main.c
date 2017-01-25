@@ -42,13 +42,13 @@ int main(int argc, char *argv[])
   char *input;
   struct command_table *p;
   init();
-    while(1){
+  while(1){
       printf("$ ");
     myinput(&ac, av, input);
     for (p = cmd_tbl; p->cmd; p++)
       if (strcmp(av[0], p->cmd) == 0) {
-	(*p->func)(ac, av);
-	break;
+        (*p->func)(ac, av);
+	       break;
       }
     if(p->cmd == NULL)
       fprintf(stderr, "unknown command: %s\n", av[0]);
