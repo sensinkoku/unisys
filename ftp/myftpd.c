@@ -337,17 +337,21 @@ static int msg_list(struct ftpd * ftpd) {
 			return -1;
 		}
 	}
-	send_ftph(ftpd, FTPMSG_OK, CODE_OK_DATA_STOC, 0);
 	char buff[2048];
 	int filesize = 0;
 	while (fgets(buff, sizeof(buff), fp)) {
 		fprintf(stderr, "fgets:%s", buff);
 		filesize += strlen(buff);
 	}
-
 	char data[filesize];
 	memset (data, 0, filesize);
 	pclose(fp);
+	if (filesize == 0) {
+		fprintf(stderr, "ls -l error\n");
+			send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
+			return -1;
+	}
+	send_ftph(ftpd, FTPMSG_OK, CODE_OK_DATA_STOC, 0);
 	if (pathlen == 0) {
 		if ((fp = popen("ls -l", "r")) == NULL) {
 			fprintf(stderr, "ls -l error\n");
@@ -363,7 +367,7 @@ static int msg_list(struct ftpd * ftpd) {
 		char lsbuf[8] = "ls -l ";
 		strncpy (ls, lsbuf, sizeof lsbuf);
 		strncat (ls, path, pathlen+1);
-		fprintf(stderr, "debug popen path%s", ls);
+		fprintf(stderr, "debug popen path%s\n", ls);
 		if ((fp = popen(ls , "r")) == NULL) {
 			fprintf(stderr, "ls -l error\n");
 			send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
