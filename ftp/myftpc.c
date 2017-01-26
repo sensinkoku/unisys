@@ -262,10 +262,10 @@ static int tcpstart(struct ftpd * ftpd) {
 	ftpd->myskt.sin_family = AF_INET;
 	ftpd->myskt.sin_port = htons(portnum);
 	struct in_addr ips;
-	char * ipadress = "127.0.0.1";
-	inet_aton(ipadress, &ips);
-	ftpd->myskt.sin_addr.s_addr =ips.s_addr;
-	size_t sizeskt = sizeof(ftpd->myskt);
+	//char * ipadress = "127.0.0.1";
+	//inet_aton(ipadress, &ips);
+	//ftpd->myskt.sin_addr.s_addr =ips.s_addr;
+	//size_t sizeskt = sizeof(ftpd->myskt);
 	if (connect(ftpd->s, ftpd->res->ai_addr, ftpd->res->ai_addrlen) < 0) {
 		perror("connect error");
 		exit(1);
@@ -303,14 +303,16 @@ static int command_work(struct ftpd * ftpd) {
 	int ac;
 	char *av[16];
 	char *input;
+	input = (char *) malloc(512);
 	struct command_table *p;
 	fprintf(stderr, "myFTP%% ");
     myinput(&ac, av, input);
-    for (p = cmd_tbl; p->cmd; p++)
+    for (p = cmd_tbl; p->cmd; p++) {
       if (strcmp(av[0], p->cmd) == 0) {
         (*p->func)(ftpd, ac, av);
 	       break;
       }
+    }
     if (p->cmd == NULL) fprintf(stderr, "unknown command: %s\n", av[0]);
 	return 0;
 }
@@ -835,8 +837,9 @@ static int client_status_change(struct ftpd * ftpd, int status) {
 	return 0;
 }
 static void myinput(int* ac, char ** av, char * input) {
-  fgets(input, 256, stdin);
+  fgets(input, 512, stdin);
   input[strlen(input) - 1] = '\0';
+  //memset(input, '\0', strlen(input));
   char c;
   *ac = 0;
   int flagchar = 1;
