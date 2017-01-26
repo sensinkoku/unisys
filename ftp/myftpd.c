@@ -125,7 +125,7 @@ static int loop_ftpd(struct ftpd * ftpd) {
 
 static int loadargs(struct ftpd * ftpd, int argc, char *argv[]) {
 	if (argc >= 3) {
-		fprintf(stderr, "Error too many arguments. Usage: ./myftpd <current dir>\n");
+		fprintf(stderr, "Error too many arguments. Usage: ./myftpd <work dir>\n");
 		exit(1);
 	}
 	char pathname[PATHLENGTH];
@@ -136,8 +136,12 @@ static int loadargs(struct ftpd * ftpd, int argc, char *argv[]) {
 		pathlength = strlen(pathname);
 	}
 	if (argc == 2) {
-		pathlength = strlen(argv[1]);
-		strncpy(pathname, argv[1], pathlength);
+		if (chdir(argv[1]) < 0) {
+			fprintf(stderr, "Argument Error: No such directory. Usage: ./myftpd <work dir>\n");
+			exit(1);
+		}
+		getcwd(pathname, PATHLENGTH);
+		pathlength = strlen(pathname);
 	}
 	ftpd->pathlength = pathlength;
 	ftpd->path = (char *)malloc ((pathlength+1) * sizeof(char));
@@ -260,7 +264,7 @@ static int work_in_recvmsg(struct ftpd * ftpd) {
 }
 
 static int msg_quit(struct ftpd * ftpd){
-	fprintf(stderr, "QUIT MSG: QUIT TCP CONNECTION");
+	fprintf(stderr, "QUIT MSG: QUIT TCP CONNECTION\n");
 	close(ftpd->s);
 	exit(1);
 }
@@ -580,8 +584,8 @@ static void print_packet(struct ftphead * packet) {
 	}
 	fprintf(stderr, "\n\n");
 	fprintf(stderr, "=======Send packet=====\n");
-	fprintf(stderr, "Type: %d %s", packet->type, type);
-	fprintf(stderr, "Code: %d\n", packet->code);
+	fprintf(stderr, "Type: 0x%02x %s", packet->type, type);
+	fprintf(stderr, "Code: 0x%02x\n", packet->code);
 	fprintf(stderr, "Length: %d\n", packet->length);
 	fprintf(stderr, "=======================\n");
 	return;
@@ -640,8 +644,8 @@ static void print_received_packet(struct ftpd * ftpd) {
 	}
 	fprintf(stderr, "\n\n");
 	fprintf(stderr, "===Received packet====\n");
-	fprintf(stderr, "Type: %d %s", ftpd->fdbuf->type, type);
-	fprintf(stderr, "Code: %d\n", ftpd->fdbuf->code);
+	fprintf(stderr, "Type: 0x%02x %s", ftpd->fdbuf->type, type);
+	fprintf(stderr, "Code: 0x%02x\n", ftpd->fdbuf->code);
 	fprintf(stderr, "Length: %d\n", ftpd->fdbuf->length);
 	fprintf(stderr, "======================\n");
 	return;
