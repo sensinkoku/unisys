@@ -190,11 +190,11 @@ static int loadargs(struct ftpd * ftpd, int argc, char *argv[]) {
 	char hostname[hostlength + 1];
 	strncpy(hostname, argv[1], hostlength);
 	hostname[hostlength] = '\0';
-	char *serv = "50021";
+	char *serv = "50021\0";
 
 	memset (&hints, 0, sizeof (hints));
 	hints.ai_socktype = SOCK_STREAM;
-	//hints.ai_family = PF_INET;
+	hints.ai_family = PF_INET;
 	//ftpd->res = (struct addrinfo *) malloc(sizeof(struct addrinfo));
 	if ((err = getaddrinfo(hostname, serv, &hints, &(ftpd->res))) < 0) {
 		fprintf(stderr, " Error getaddrinfo: %s\n", gai_strerror(err));
@@ -202,6 +202,7 @@ static int loadargs(struct ftpd * ftpd, int argc, char *argv[]) {
 	}
 	return 0;
 }
+
 
 static int init_ftpd_struct(struct ftpd * ftpd) {
 	ftpd->status = STAT_INITIAL;
@@ -231,7 +232,7 @@ static int setsig(struct ftpd * ftpd) {
 	freeaddrinfo(ftpd->res);
 	return 0;
 }*/
-static int tcpstart(struct ftpd * ftpd) {
+/*static int tcpstart(struct ftpd * ftpd) {
 	if ((ftpd->s = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
 		perror("socket error");
 		exit(1);
@@ -245,6 +246,27 @@ static int tcpstart(struct ftpd * ftpd) {
 	ftpd->myskt.sin_addr.s_addr =ips.s_addr;
 	size_t sizeskt = sizeof(ftpd->myskt);
 	if (connect(ftpd->s, (struct sockaddr *)&(ftpd->myskt), sizeskt) < 0) {
+		perror("connect error");
+		exit(1);
+	}
+	ftpd->status = STAT_WAIT_COMMAND;
+	freeaddrinfo(ftpd->res);
+	return 0;
+}*/
+static int tcpstart(struct ftpd * ftpd) {
+	if ((ftpd->s = socket(PF_INET, SOCK_STREAM, 0)) < 0) {
+		perror("socket error");
+		exit(1);
+	}
+	in_port_t portnum = FTPPORTNUM;
+	ftpd->myskt.sin_family = AF_INET;
+	ftpd->myskt.sin_port = htons(portnum);
+	struct in_addr ips;
+	char * ipadress = "127.0.0.1";
+	inet_aton(ipadress, &ips);
+	ftpd->myskt.sin_addr.s_addr =ips.s_addr;
+	size_t sizeskt = sizeof(ftpd->myskt);
+	if (connect(ftpd->s, ftpd->res->ai_addr, ftpd->res->ai_addrlen) < 0) {
 		perror("connect error");
 		exit(1);
 	}
@@ -576,7 +598,7 @@ static int msg_stor(struct ftpd * ftpd) {
 	//memset(path, '\0', pathlen+1);
 	strncpy(path, ftpd->fdbuf->data, pathlen);
 	if ((ftpd->fp = fopen(path, "wb")) == NULL) {
-		fprintf(stderr, "File access prohibited\n");
+		fprintf(stderr, "Failed file access.\n");
 		send_ftph(ftpd,FTPMSG_FILE_ERR,CODE_FILEERR_NOACCESS,0);
 		return -1;
 	}
@@ -877,7 +899,7 @@ static void lpwd_proc(struct ftpd * ftpd, int argc, char *argv[]) {
 	char pathname[PATHLENGTH];
 	memset(pathname, '\0', PATHLENGTH);
 	getcwd(pathname, PATHLENGTH);
-	fprintf(stdout, "Client curent directory: %s\n",pathname);
+	fprintf(stdout, "Client current directory: %s\n",pathname);
 //	send_ftph(ftpd, FTPMSG_PWD, 0, 0);
 	return;
 }
@@ -1016,12 +1038,12 @@ static void print_packet(struct ftphead * packet) {
 		default:
 		break;
 	}
-	fprintf(stderr, "\n\nSend packet.\n");
-	fprintf(stderr, "======================\n");
+	fprintf(stderr, "\n\n");
+	fprintf(stderr, "=======Send packet=====\n");
 	fprintf(stderr, "Type: %d %s", packet->type, type);
 	fprintf(stderr, "Code: %d\n", packet->code);
 	fprintf(stderr, "Length: %d\n", packet->length);
-	fprintf(stderr, "======================\n");
+	fprintf(stderr, "=======================\n");
 	return;
 }
 static void print_received_packet(struct ftpd * ftpd) {
@@ -1076,8 +1098,8 @@ static void print_received_packet(struct ftpd * ftpd) {
 		default:
 		break;
 	}
-	fprintf(stderr, "\n\nReceived packet.\n");
-	fprintf(stderr, "======================\n");
+	fprintf(stderr, "\n\n");
+	fprintf(stderr, "===Received packet====\n");
 	fprintf(stderr, "Type: %d %s", ftpd->fdbuf->type, type);
 	fprintf(stderr, "Code: %d\n", ftpd->fdbuf->code);
 	fprintf(stderr, "Length: %d\n", ftpd->fdbuf->length);

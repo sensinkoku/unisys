@@ -115,10 +115,10 @@ static int loop_ftpd(struct ftpd * ftpd) {
 	for (;;) {
 		make_connection(ftpd);
 		int chpid; // chile process id;
-		//if ((chpid = fork()) == 0) {
+		if ((chpid = fork()) == 0) {
 			fprintf(stderr, "TCP connection success. Forked process.\n");
 			ftp_work(ftpd);
-		//}
+		}
 	}
 	return 0;
 }
@@ -196,7 +196,7 @@ static int ftp_work(struct ftpd * ftpd) {
 			perror("recvfrom error");
 			exit(1);
 		} else if (count == 0) {
-			fprintf(stderr, "TCP Connection finished. Program exit.\n");
+			fprintf(stderr, "TCP Connection finished. Forked Process exit.\n");
 			exit(1);
 		}
 
@@ -292,7 +292,7 @@ static int msg_cwd(struct ftpd * ftpd) {
 	getcwd(pathname, PATHLENGTH);
 	strncat(pathname, "/", pathlen);
 	strncat(pathname, path, pathlen);
-	fprintf(stderr, "cdpath:%s\n", pathname);
+	//fprintf(stderr, "cdpath:%s\n", pathname);
 	if (chdir(pathname) < 0) {
 		fprintf(stderr, "Change directory error, Illegal path.\n");
 		send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR,0);
@@ -330,7 +330,7 @@ static int msg_list(struct ftpd * ftpd) {
 		char lsbuf[8] = "ls -l ";
 		strncpy (ls, lsbuf, sizeof lsbuf);
 		strncat (ls, path, pathlen+1);
-		fprintf(stderr, "debug popen path%s", ls);
+		//fprintf(stderr, "debug popen path%s", ls);
 		if ((fp = popen(ls , "r")) == NULL) {
 			fprintf(stderr, "ls -l error\n");
 			send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
@@ -340,7 +340,7 @@ static int msg_list(struct ftpd * ftpd) {
 	char buff[2048];
 	int filesize = 0;
 	while (fgets(buff, sizeof(buff), fp)) {
-		fprintf(stderr, "fgets:%s", buff);
+		//fprintf(stderr, "fgets:%s", buff);
 		filesize += strlen(buff);
 	}
 	char data[filesize];
@@ -367,7 +367,7 @@ static int msg_list(struct ftpd * ftpd) {
 		char lsbuf[8] = "ls -l ";
 		strncpy (ls, lsbuf, sizeof lsbuf);
 		strncat (ls, path, pathlen+1);
-		fprintf(stderr, "debug popen path%s\n", ls);
+		//fprintf(stderr, "debug popen path%s\n", ls);
 		if ((fp = popen(ls , "r")) == NULL) {
 			fprintf(stderr, "ls -l error\n");
 			send_ftph(ftpd, FTPMSG_FILE_ERR, CODE_FILEERR_NODIR, 0);
@@ -375,12 +375,12 @@ static int msg_list(struct ftpd * ftpd) {
 		}
 	}
 	while (fgets(buff, sizeof(buff), fp)) {
-		fprintf(stderr, "fgets:%s", buff);
+		//fprintf(stderr, "fgets:%s", buff);
 		int size = strlen(buff);
 		strncat(data, buff, size);
 	}
-	fprintf(stderr, "%d\n", filesize);
-	fprintf(stderr, "%d\n", strlen(data));
+	//fprintf(stderr, "%d\n", filesize);
+	//fprintf(stderr, "%d\n", strlen(data));
 	//int filesize = getfilesize(fp);
 	//fprintf(stderr, "filesize :%d\n", filesize);
 
@@ -578,12 +578,12 @@ static void print_packet(struct ftphead * packet) {
 		default:
 		break;
 	}
-	fprintf(stderr, "\n\nSend packet.\n");
-	fprintf(stderr, "======================\n");
+	fprintf(stderr, "\n\n");
+	fprintf(stderr, "=======Send packet=====\n");
 	fprintf(stderr, "Type: %d %s", packet->type, type);
 	fprintf(stderr, "Code: %d\n", packet->code);
 	fprintf(stderr, "Length: %d\n", packet->length);
-	fprintf(stderr, "======================\n");
+	fprintf(stderr, "=======================\n");
 	return;
 }
 static void print_received_packet(struct ftpd * ftpd) {
@@ -638,8 +638,8 @@ static void print_received_packet(struct ftpd * ftpd) {
 		default:
 		break;
 	}
-	fprintf(stderr, "\n\nReceived packet.\n");
-	fprintf(stderr, "======================\n");
+	fprintf(stderr, "\n\n");
+	fprintf(stderr, "===Received packet====\n");
 	fprintf(stderr, "Type: %d %s", ftpd->fdbuf->type, type);
 	fprintf(stderr, "Code: %d\n", ftpd->fdbuf->code);
 	fprintf(stderr, "Length: %d\n", ftpd->fdbuf->length);
