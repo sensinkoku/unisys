@@ -425,6 +425,7 @@ static int work_in_cwd(struct ftpd * ftpd){
 		break;
 		default:{
 			fprintf(stderr, "Not proper Message in STAT_WAIT_CWD\n");
+			fprintf(stderr, "Illegal access for directory.\n");
 			client_status_change(ftpd,STAT_WAIT_COMMAND);
 			return -1;
 		}
@@ -439,6 +440,7 @@ static int work_in_list_ok(struct ftpd * ftpd){
 		break;
 		default:{
 			fprintf(stderr, "Not proper Message in STAT_WAIT_LIST_OK\n");
+			fprintf(stderr, "No such file or directory\n");
 			client_status_change(ftpd,STAT_WAIT_COMMAND);
 			return -1;
 		}
@@ -505,7 +507,7 @@ static int work_in_stor_ok(struct ftpd * ftpd){
 }
 
 static int msg_quit(struct ftpd * ftpd){
-	fprintf(stderr, "QUIT MSG: QUIT TCP CONNECTION");
+	fprintf(stderr, "QUIT MSG: QUIT TCP CONNECTION\n");
 	close(ftpd->s);
 	exit(1);
 }
@@ -639,7 +641,7 @@ static int msg_ok_pwd(struct ftpd * ftpd){
 		char path[ftpd->fdbuf->length + 1];
 		strncpy(path, ftpd->fdbuf->data, ftpd->fdbuf->length);
 		path[ftpd->fdbuf->length] = '\0';
-		fprintf(stderr,"Server current directory got. Path: %s\n", path);
+		fprintf(stdout,"Server current directory got. Path: %s\n", path);
 		client_status_change(ftpd, STAT_WAIT_COMMAND);
 		return 0;
 	} else {
@@ -655,7 +657,7 @@ static int msg_ok_stor(struct ftpd * ftpd){
 		char data[filesize];
 		fread(data, sizeof(char), filesize, ftpd->fp);
 		//send datas
-		fprintf(stderr, "debug. filesize = %d data = %s", filesize, data);
+		//fprintf(stderr, "debug. filesize = %d data = %s", filesize, data);
 		send_ftpdata(ftpd, data, filesize);
 		fclose(ftpd->fp);
 		client_status_change(ftpd, STAT_WAIT_COMMAND);
@@ -707,10 +709,10 @@ static int msg_data_retr(struct ftpd * ftpd){
 }
 static int msg_data_list (struct ftpd * ftpd){
 	if (ftpd->fdbuf->code == CODE_DATA_NOTLAST) {
-		fprintf(stderr, "%s",ftpd->fdbuf->data);
+		fprintf(stdout, "%s",ftpd->fdbuf->data);
 		return 0;
 	} else if (ftpd->fdbuf->code == CODE_DATA_LAST) {
-		fprintf(stderr, "%s",ftpd->fdbuf->data);
+		fprintf(stdout, "%s",ftpd->fdbuf->data);
 		client_status_change(ftpd, STAT_WAIT_COMMAND);
 		return 0;
 	} else {
@@ -858,6 +860,7 @@ static void myinput(int* ac, char ** av, char * input) {
 }
 
 static void quit_proc(struct ftpd * ftpd, int argc, char *argv[]) {
+	send_ftph(ftpd, FTPMSG_QUIT, 0, 0);
 	close(ftpd->s);
 	exit(1);
 	return;
@@ -984,7 +987,21 @@ static void put_proc(struct ftpd * ftpd, int argc, char *argv[]) {
 	return;
 
 }
-static void help_proc(struct ftpd * ftpd, int argc, char *argv[]){}
+static void help_proc(struct ftpd * ftpd, int argc, char *argv[]){
+  fprintf(stdout, "\n");
+  fprintf(stdout,"myFTP 20170126\nUsage:<command> [<args>]\n");
+  fprintf(stdout,"myFTP client commands are:\n");
+  fprintf(stdout, "help             Show help for this program.\n");
+  fprintf(stdout, "pwd              Show server current working directory.\n");
+  fprintf(stdout, "cd [path]        Change server working directory to path.\n");
+  fprintf(stdout, "dir ([path])     Show file details in current server directory or path directory\n");
+  fprintf(stdout, "lcd [path]       Change client working directory to path.\n");
+  fprintf(stdout, "ldir ([path])    Show file details in current client directory or path directory\n");
+  fprintf(stdout, "get [path1] ([path2]) Get file path1 from server as path2.\n");
+  fprintf(stdout, "put [path1] ([path2]) Put file path1 to server as path2.\n");
+  fprintf(stdout, "quit             Quit this program.\n");
+	return;
+}
 
 static void print_packet(struct ftphead * packet) {
 	char type[16];
@@ -1040,8 +1057,8 @@ static void print_packet(struct ftphead * packet) {
 	}
 	fprintf(stderr, "\n\n");
 	fprintf(stderr, "=======Send packet=====\n");
-	fprintf(stderr, "Type: %d %s", packet->type, type);
-	fprintf(stderr, "Code: %d\n", packet->code);
+	fprintf(stderr, "Type: 0x%02x %s", packet->type, type);
+	fprintf(stderr, "Code: 0x%02x\n", packet->code);
 	fprintf(stderr, "Length: %d\n", packet->length);
 	fprintf(stderr, "=======================\n");
 	return;
@@ -1100,8 +1117,8 @@ static void print_received_packet(struct ftpd * ftpd) {
 	}
 	fprintf(stderr, "\n\n");
 	fprintf(stderr, "===Received packet====\n");
-	fprintf(stderr, "Type: %d %s", ftpd->fdbuf->type, type);
-	fprintf(stderr, "Code: %d\n", ftpd->fdbuf->code);
+	fprintf(stderr, "Type: 0x%02x %s", ftpd->fdbuf->type, type);
+	fprintf(stderr, "Code: 0x%02x\n", ftpd->fdbuf->code);
 	fprintf(stderr, "Length: %d\n", ftpd->fdbuf->length);
 	fprintf(stderr, "======================\n");
 	return;
